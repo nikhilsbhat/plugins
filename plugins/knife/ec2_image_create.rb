@@ -32,10 +32,10 @@ class Chef
           puts " "
           puts "#{ui.color('We are capturing required image for you', :cyan)}"
           puts "."
-          image = connection.create_image(instance_id: "#{instance_id}", name: "#{image_name}", description: "#{image_description}",)
+          image = connection_client.create_image(instance_id: "#{instance_id}", name: "#{image_name}", description: "#{image_description}",)
           image_id = image.image_id
           #puts "#{image_id}"
-          connection.create_tags({ resources: ["#{image_id}"], tags: [{ key: 'Name', value: "#{image_name}" }]})
+          connection_client.create_tags({ resources: ["#{image_id}"], tags: [{ key: 'Name', value: "#{image_name}" }]})
           #printing the details of the resources created
           puts ""
           puts "#{ui.color('The details of the resource created', :cyan)}"
@@ -47,6 +47,8 @@ class Chef
         else
           puts "#{ui.color('...You have opted to move out of image creation...', :cyan)}"
         end
+
+        return image_id
       end
     end
   end
