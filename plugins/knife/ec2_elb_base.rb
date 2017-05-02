@@ -4,15 +4,15 @@ require 'chef/knife/ec2_base'
 
 class Chef
   class Knife
-    module Ec2ClientBase
+    module Ec2ElbBase
 
       def self.included(includer)
         includer.class_eval do
           include Ec2Base
 
-          def connection_client
-            @connection_client ||= begin
-              connection_client = Aws::EC2::Client.new(
+          def connection_elb
+            @connection_elb ||= begin
+              connection_elb = Aws::ElasticLoadBalancing::Client.new(
                      region: 'us-west-2',
                      credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
             end
@@ -23,3 +23,4 @@ class Chef
     end
   end
 end
+

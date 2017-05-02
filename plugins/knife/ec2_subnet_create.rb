@@ -20,20 +20,16 @@ class Chef
         subnet_name = name_args[2]
         vpc_id = name_args[3] 
 
-        puts ''
-        puts "#{ui.color('Type', :magenta)}       : #{type}"
-        puts "#{ui.color('CIDR', :magenta)}       : #{cidrBlock}"
-        puts "#{ui.color('Subnet Name', :magenta)}: #{subnet_name}"
-        puts "#{ui.color('VPC-id', :magenta)}     : #{vpc_id}"
-        puts ''
-
-        option = ui.ask_question( "The above mentioned are the details for the subnet creation, would you like to proceed...?  [y/n]", opts = {:default => 'n'})
-
-        if option == "y"
+        #puts ''
+        #puts "#{ui.color('Type', :magenta)}       : #{type}"
+        #puts "#{ui.color('CIDR', :magenta)}       : #{cidrBlock}"
+        #puts "#{ui.color('Subnet Name', :magenta)}: #{subnet_name}"
+        #puts "#{ui.color('VPC-id', :magenta)}     : #{vpc_id}"
+        #puts ''
 
           # creation of subnet
           puts "#{ui.color('subnet creation has been started', :cyan)}"
-          subnet = connection.create_subnet({vpc_id: "#{vpc_id}", cidr_block: "#{cidrBlock}"})
+          subnet = connection_resource.create_subnet({vpc_id: "#{vpc_id}", cidr_block: "#{cidrBlock}"})
           subnet.create_tags({ tags: [{ key: 'Name', value: "#{subnet_name}" }]})
           subnet_id = subnet.id
           puts "."
@@ -45,7 +41,7 @@ class Chef
             # creation of internet gateway
             # Chef::Log.debug 'Creating public IGW'
             puts "#{ui.color('Creating IGW for the subnet as it is public subnet', :cyan)}"
-            igw = connection.create_internet_gateway
+            igw = connection_resource.create_internet_gateway
             igw.create_tags({ tags: [{ key: 'Name', value: "#{subnet_name}" }]})
             igw.attach_to_vpc(vpc_id: "#{vpc_id}")
             gate_way_id = igw.id
@@ -57,7 +53,7 @@ class Chef
             # Chef::Log.debug 'Creating public route tabel'
             puts "#{ui.color('creating route table for the VPC', :cyan)}"
             puts "."
-            table = connection.create_route_table({ vpc_id: "#{vpc_id}"})
+            table = connection_resource.create_route_table({ vpc_id: "#{vpc_id}"})
             route_table_id = table.id
             table.create_tags({ tags: [{ key: 'Name', value: "#{subnet_name}" }]})
             # Chef::Log.debug 'Creating public route'
@@ -74,16 +70,13 @@ class Chef
           end
 
           #printing the details of the resources created
-          puts "#{ui.color('Here are the details of the resources created', :cyan)}"
-          puts ""
-          puts "#{ui.color('subnet_id', :magenta)}     : #{subnet_id}"
-          puts "#{ui.color('igw_id', :magenta)}        : #{gate_way_id}"
-          puts "#{ui.color('route_table_id', :magenta)}: #{route_table_id}"
-          puts ""
-        else
-          puts "#{ui.color('....You have opted to move out of the Subnet creation....', :cyan)}"
-        end
-		
+         # puts "#{ui.color('Here are the details of the resources created', :cyan)}"
+         # puts ""
+         # puts "#{ui.color('subnet_id', :magenta)}     : #{subnet_id}"
+         # puts "#{ui.color('igw_id', :magenta)}        : #{gate_way_id}"
+         # puts "#{ui.color('route_table_id', :magenta)}: #{route_table_id}"
+         # puts ""
+	 return subnet_id	
       end
     end
   end
