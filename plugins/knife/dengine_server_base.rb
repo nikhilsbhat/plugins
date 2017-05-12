@@ -20,6 +20,14 @@ class Chef
         data_sg = data_value_sg.raw_data['SECURITY-ID']
 
       end
+      def get_vpc_id(env)
+
+        data_item_sg = Chef::DataBagItem.new
+        data_item_sg.data_bag(env)
+        data_value_sg = Chef::DataBagItem.load(env,env)
+        data_sg = data_value_sg.raw_data['VPD-ID']
+
+      end
     end
   end
 end

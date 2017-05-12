@@ -12,7 +12,7 @@ class Chef
 
           def connection_elb
             @connection_elb ||= begin
-              connection_elb = Aws::ElasticLoadBalancing::Client.new(
+              connection_elb = Aws::ElasticLoadBalancingV2::Client.new(
                      region: 'us-west-2',
                      credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
             end

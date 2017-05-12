@@ -55,9 +55,9 @@ class Chef
        puts ''
        puts ''
          if platform == 'ubuntu'
-           create = "knife ec2 server create -r role[#{role}] -I ami-8a9d5dea -f #{flavor} -S nikhil-key --node-name #{chef_node_name} --ssh-user ubuntu --region us-west-2 --security-group-ids #{sg} --subnet #{vpc} --associate-public-ip"
+           create = "knife ec2 server create -r role[#{role}] -I ami-8a9d5dea -f #{flavor} -S chef-coe --node-name #{chef_node_name} --ssh-user ubuntu --region us-west-2 --security-group-ids #{sg} --subnet #{vpc} --associate-public-ip"
          elsif platform == 'windows'
-           create = "knife ec2 server create -r role[#{role}] -I ami-1562d075 -f #{flavor} \ -S nikhil-key --node-name #{chef_node_name} --ebs-size 30 --region us-west-2 --security-group-ids sg-09f80971 --user-data /root/chef-repo/.chef/credentials/windows-script.ps1 --winrm-transport plaintext"
+           create = "knife ec2 server create -r role[#{role}] -I ami-1562d075 -f #{flavor} \ -S chef-coe --node-name #{chef_node_name} --ebs-size 30 --region us-west-2 --security-group-ids sg-09f80971 --user-data /root/chef-repo/.chef/credentials/windows-script.ps1 --winrm-transport plaintext"
          else
            puts 'you have have not selected the proper OS'
          end
