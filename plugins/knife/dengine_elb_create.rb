@@ -1,12 +1,12 @@
 require 'chef/knife'
-require "#{File.dirname(__FILE__)}/ec2_elb_base"
+require "#{File.dirname(__FILE__)}/dengine_elb_base"
 require "#{File.dirname(__FILE__)}/dengine_server_base"
 
 class Chef
   class Knife
     class DengineElbCreate < Knife
 
-      include Chef::Knife::Ec2ElbBase
+      include Chef::Knife::DengineElbBase
       include Chef::Knife::DengineServerBase
 
       banner 'knife dengine elb create (options)'
@@ -46,6 +46,7 @@ class Chef
         :description => "The id of subnet in which the load balancer that has to be created"
 
      def run
+
        name = config[:name]
        env = config[:env]
        protocol = config[:listener_protocol]
@@ -54,16 +55,44 @@ class Chef
        instanceport = config[:listener_instance_port]
        sslcertificateid = config[:ssl_certificate_id]
 
-       subnet = get_env(env)
+       subnet = get_subnet_id(env)
        vpc = get_vpc_id(env)
        sg_group = get_security_group(env)
-       subnet_id = ["#{subnet}"]
+       subnet_id1 = subnet.first
+       subnet_id2 = subnet.last
        security_group = ["#{sg_group}"]
 
+       # creation of load balancer
+       puts "#{ui.color('creating load balancer for the environment', :cyan)}"
+       elb_details = create_loadbalancer(name,subnet_id1,subnet_id2,security_group)
+       elb_dns = elb_details.first
+       elb_arn = elb_details.last
+       puts "#{ui.color('load balancer created', :cyan)}"
+       puts ""
+
+       # creation of target group
+       puts "#{ui.color('creating target group for the load balancer created', :cyan)}"
+       elb_target_arn = create_target_group(name,protocol,loadbalancerport,vpc)
+       puts "#{ui.color('target group created', :cyan)}"
+       puts ""
+
+       # creation of listeners
+       puts "#{ui.color('creating listeners for the load balancer created', :cyan)}"
+       lb_listeners = create_listeners(elb_arn,protocol,loadbalancerport,elb_target_arn)
+       puts "#{ui.color('listeners created', :cyan)}"
+       puts ""
+
+       puts "#{ui.color('Printing details', :magenta)}"
+       puts "First subnet value #{subnet_id1}"
+       puts "First subnet value #{subnet_id2}"
+
+     end
 #---------------------Creation of Load Balancer-------------------------------
+
+     def create_loadbalancer(name,subnet_id1,subnet_id2,security_group)
        elb = connection_elb.create_load_balancer({
           name: name,
-          subnets: subnet_id,
+          subnets: [subnet_id1,subnet_id2,],
           security_groups: security_group,
           scheme: "internet-facing",
           tags: [
@@ -74,50 +103,52 @@ class Chef
                 ],
           ip_address_type: "ipv4",
           })
-	   elb_dns = elb.load_balancers.dns_name
-       lb_arn = elb.load_balancers.load_balancer_arn
+       lb_dns = elb.load_balancers[0].dns_name
+       lb_arn = elb.load_balancers[0].load_balancer_arn
 
-       elb_target_arn = create_target_group(name,protocol,loadbalancerport,vpc)
+       return lb_dns,lb_arn
+     end
 
 #---------------------Creation of Listener-------------------------------
 
-         listener = connection_elb.create_listener({	   
-         load_balancer_arn: lb_arn, # required
-         protocol: protocol, # required, accepts HTTP, HTTPS
-         port: loadbalancerport, # required
-         default_actions: [ # required
+     def create_listeners(elb_arn,protocol,loadbalancerport,elb_target_arn)
+       listener = connection_elb.create_listener({
+       load_balancer_arn: elb_arn, # required
+       protocol: protocol, # required, accepts HTTP, HTTPS
+       port: loadbalancerport, # required
+       default_actions: [ # required
          {
            type: "forward", # required, accepts forward
            target_group_arn: elb_target_arn, # required
          },
          ],
          })
-       end
+     end
+
 #---------------------Creation of Target Groups-------------------------------
 
-       def create_target_group(name,protocol,loadbalancerport,vpc)
+     def create_target_group(name,protocol,loadbalancerport,vpc)
        target = connection_elb.create_target_group({
        name: "Target-#{name}", # required
-         protocol: protocol, # required, accepts HTTP, HTTPS
-         port: loadbalancerport, # required
-         vpc_id: vpc, # required
-         health_check_protocol: protocol, # accepts HTTP, HTTPS
-         health_check_port: "traffic-port",
-         health_check_path: "/index.html",
-         health_check_interval_seconds: 30,
-         health_check_timeout_seconds: 5,
-         healthy_threshold_count: 5,
-         unhealthy_threshold_count: 2,
-         matcher: {
-           http_code: "200", # required
-         },
+       protocol: protocol, # required, accepts HTTP, HTTPS
+       port: loadbalancerport, # required
+       vpc_id: vpc, # required
+       health_check_protocol: protocol, # accepts HTTP, HTTPS
+       health_check_port: "traffic-port",
+       health_check_path: "/index.html",
+       health_check_interval_seconds: 30,
+       health_check_timeout_seconds: 5,
+       healthy_threshold_count: 5,
+       unhealthy_threshold_count: 2,
+       matcher: {
+         http_code: "200", # required
+       },
        })
-       elb_target = connection_elb.listeners.default_actions.target_group_arn
+       elb_target = target.target_groups[0].target_group_arn
        return elb_target
-       end
+     end
 
 #------------------------------------------------------------------------------
     end
   end
 end
-

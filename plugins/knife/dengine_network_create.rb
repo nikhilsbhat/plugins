@@ -1,68 +1,88 @@
 require 'chef/knife'
-require "#{File.dirname(__FILE__)}/ec2_vpc_create"
-require "#{File.dirname(__FILE__)}/ec2_subnet_create"
-require "#{File.dirname(__FILE__)}/ec2_security_create"
+require "#{File.dirname(__FILE__)}/dengine_network_base"
 
 module Engine
   class DengineNetworkCreate < Chef::Knife
 
-    deps do
-      Chef::Knife::Ec2VpcCreate.load_deps
-      Chef::Knife::Ec2SubnetCreate.load_deps
-      Chef::Knife::Ec2SecurityCreate.load_deps
-    end
+    include DengineNetworkBase
+    include Ec2ResourceBase
+    include Ec2ClientBase
+    banner 'knife dengine network create (options)'
 
-    banner 'knife dengine network create ENV'
+    option :name,
+      :short => '-n NETWORK_NAME',
+      :long => '--name NETWORK_NAME',
+      :description => "The name of the network that has to be created"
 
     def run
 
-    unless name_args.size == 1
-      show_usage
-        Chef::Application.fatal! 'Wrong number of arguments'
-    end
+      name = config[:name]
 
-    name = name_args[0]
+      # validating data_bag
+      data_bag_find = check_data_bag(name)
+      puts data_bag_find
 
-    #name = 'PROD'
-    vpc_cidr = '192.168.0.0/16'
-    type = 'public'
-    sub_cidr = '192.168.10.0/24'
-
-    #creation of vpc
-    ec2_vpc = Chef::Knife::Ec2VpcCreate.new
-    ec2_vpc.name_args = ["#{vpc_cidr}","#{name}"]
-    ec2_vpc_out = ec2_vpc.run
-
-    #creation of subnet
-    ec2_subnet = Chef::Knife::Ec2SubnetCreate.new
-    ec2_subnet.name_args = ["#{type}","#{sub_cidr}","#{name}","#{ec2_vpc_out}"]
-    ec2_subnet_out = ec2_subnet.run
-
-    #creation of security group
-    ec2_security = Chef::Knife::Ec2SecurityCreate.new
-    ec2_security.name_args = ["#{name}","#{ec2_vpc_out}"]
-    ec2_security_out = ec2_security.run
-
-	#creating and adding data to data_bag
-	users = Chef::DataBag.new
-        users.name("#{name}")
-        users.create	
-        data = {
-               'id' => "#{name}",
-               'VPD-ID' => "#{ec2_vpc_out}",
-               'SUBNET-ID' => "#{ec2_subnet_out}",
-               'SECURITY-ID' => "#{ec2_security_out}"
-               }
-        databag_item = Chef::DataBagItem.new
-        databag_item.data_bag("#{name}")
-        databag_item.raw_data = data
-        databag_item.save 
-			
-    #printing resource details
-    puts "#{ec2_vpc_out}"
-    puts "#{ec2_subnet_out}"
-    puts "#{ec2_security_out}"
+        if data_bag_find == 1
+          create_network(name)
+        else
+          puts "#{ui.color('Network already exists please check', :cyan)}"
+        end
 
     end
+
+    def create_network(name)
+
+      # CIDR details
+      vpc_cidr = '192.168.0.0/16'
+      sub_cidr1 = '192.168.10.0/24'
+      sub1_name = "#{name}_sub1"
+      sub_cidr2 = '192.168.20.0/24'
+      sub2_name = "#{name}_sub2"
+
+      # creation of VPC
+      puts "#{ui.color('creating vpc for the environment', :cyan)}"
+      ec2_vpc = create_vpc(name,vpc_cidr)
+
+      # creation of Subnet
+      puts "#{ui.color('creating subnet for the environment', :cyan)}"
+      ec2_subnet1 = create_subnet(sub_cidr1,ec2_vpc,sub1_name,"us-west-2a")
+      ec2_subnet2 = create_subnet(sub_cidr2,ec2_vpc,sub2_name,"us-west-2b")
+
+      # creation of IGW
+      puts "#{ui.color('creating Internet Gateway for the environment', :cyan)}"
+      ec2_igw = create_igw(name,ec2_vpc)
+
+      # creation of Route Table
+      puts "#{ui.color('creating Route Table for the environment', :cyan)}"
+      ec2_route1 = create_route_table(ec2_vpc,name,ec2_igw,ec2_subnet1)
+      ec2_route2 = create_route_table(ec2_vpc,name,ec2_igw,ec2_subnet2)
+
+      # creation of Security Group
+      puts "#{ui.color('creating Security group for the environment', :cyan)}"
+      ec2_security = create_security_group(name,ec2_vpc)
+
+      # creating and adding data to data_bag
+      users = Chef::DataBag.new
+      users.name("#{name}")
+      users.create
+      data = {
+             'id' => "#{name}",
+             'VPC-ID' => "#{ec2_vpc}",
+             'SUBNET-ID' => ["#{ec2_subnet1}","#{ec2_subnet2}"],
+             'SECURITY-ID' => "#{ec2_security}"
+             }
+      databag_item = Chef::DataBagItem.new
+      databag_item.data_bag("#{name}")
+      databag_item.raw_data = data
+      databag_item.save
+
+      # printing resource details
+      puts "#{ui.color('vpc-id', :magenta)}          : #{ec2_vpc}"
+      puts "#{ui.color('subnet-ids', :magenta)}       : #{ec2_subnet1},#{ec2_subnet2}"
+      puts "#{ui.color('igw-id', :magenta)}          : #{ec2_igw}"
+      puts "#{ui.color('security-group-id', :magenta)}: #{ec2_security}"
+
+    end
+
   end
 end

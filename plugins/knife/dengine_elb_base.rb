@@ -4,7 +4,7 @@ require 'chef/knife/ec2_base'
 
 class Chef
   class Knife
-    module Ec2ElbBase
+    module DengineElbBase
 
       def self.included(includer)
         includer.class_eval do
@@ -23,4 +23,3 @@ class Chef
     end
   end
 end
-

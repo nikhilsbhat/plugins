@@ -47,7 +47,8 @@ class Chef
       runlist        = set_runlist(role)
       sg_group       = get_security_group(network)
       puts "#{runlist}"
-      chef_env       = get_env(network)
+      env       = get_env(network)
+      chef_env = env.first
       security_group = ["#{sg_group}"]
       puts "#{security_group}"
       image          = Chef::Config[:knife][:image]
