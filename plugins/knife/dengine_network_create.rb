@@ -5,8 +5,9 @@ module Engine
   class DengineNetworkCreate < Chef::Knife
 
     include DengineNetworkBase
-    include Ec2ResourceBase
-    include Ec2ClientBase
+    include DengineClientBase
+    include DengineResourceBase
+
     banner 'knife dengine network create (options)'
 
     option :name,

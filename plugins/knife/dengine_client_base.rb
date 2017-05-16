@@ -1,14 +1,11 @@
 require 'aws-sdk'
 require 'chef/knife'
-require 'chef/knife/ec2_base'
-
 
 module  Engine
   module DengineClientBase
 
     def self.included(includer)
       includer.class_eval do
-        include Ec2Base
 
         def connection_client
           @connection_client ||= begin

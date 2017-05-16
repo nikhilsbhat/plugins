@@ -2,12 +2,11 @@ require 'chef/knife'
 require "#{File.dirname(__FILE__)}/dengine_elb_base"
 require "#{File.dirname(__FILE__)}/dengine_server_base"
 
-class Chef
-  class Knife
-    class DengineElbCreate < Knife
+module Engine
+    class DengineElbCreate < Chef::Knife
 
-      include Chef::Knife::DengineElbBase
-      include Chef::Knife::DengineServerBase
+      include DengineElbBase
+      include DengineServerBase
 
       banner 'knife dengine elb create (options)'
 
@@ -82,6 +81,23 @@ class Chef
        puts "#{ui.color('listeners created', :cyan)}"
        puts ""
 
+       # creating and adding data to data_bag
+       users = Chef::DataBag.new
+       users.name("#{name}")
+       users.create
+       data = {
+              'id' => "#{name}",
+              'ELB-NAME' => "#{name}",
+              'TARGET-GROUP-ARN' => ["#{elb_target_arn}"],
+              'ELB_DNS' => "#{elb_dns}",
+              'ELB_ARN' => "#{elb_arn}"
+              }
+       databag_item = Chef::DataBagItem.new
+       databag_item.data_bag("#{name}")
+       databag_item.raw_data = data
+       databag_item.save
+
+       # printing details of the loadbalancers
        puts "#{ui.color('Printing details', :magenta)}"
        puts "First subnet value #{subnet_id1}"
        puts "First subnet value #{subnet_id2}"
@@ -149,6 +165,5 @@ class Chef
      end
 
 #------------------------------------------------------------------------------
-    end
   end
 end
