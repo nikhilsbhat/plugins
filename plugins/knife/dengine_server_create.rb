@@ -1,12 +1,12 @@
 require 'chef/knife'
 require "#{File.dirname(__FILE__)}/dengine_server_base"
 
-class Chef
-  class Knife
-    class DengineServerCreate < Knife
+module Engine
+    class DengineServerCreate < Chef::Knife
+
+    include DengineServerBase
 
     deps do
-      include Chef::Knife::DengineServerBase
       require 'chef/knife/ec2_server_create'
       Chef::Knife::Ec2ServerCreate.load_deps
     end
@@ -59,7 +59,8 @@ class Chef
 
       output = aws_server_create(node_name,runlist,chef_env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor)
 
-      puts "#{output}"
+      return output
+      #puts "#{output}"
 
     end
 
@@ -100,8 +101,9 @@ class Chef
       puts "NODE-NAME: #{node_name}"
       puts "ENV      :#{chef_env}"
       puts "-------------------------"
+
+      return node_name
     end
 
   end
-end
 end

@@ -1,7 +1,6 @@
 require 'chef/knife'
 
-class Chef
-  class Knife
+module Engine
     module DengineServerBase
 
       def get_env(env)
@@ -41,6 +40,5 @@ class Chef
         return data_sub
       end
 
-    end
   end
 end

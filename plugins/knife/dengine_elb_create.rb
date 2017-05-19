@@ -45,7 +45,7 @@ module Engine
         :description => "The id of subnet in which the load balancer that has to be created"
 
      def run
-
+       puts "Hi this is from knife ELB PLUGIN"
        name = config[:name]
        env = config[:env]
        protocol = config[:listener_protocol]
