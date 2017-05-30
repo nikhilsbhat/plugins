@@ -78,10 +78,14 @@ module Engine
       databag_item.save
 
       # printing resource details
-      puts "#{ui.color('vpc-id', :magenta)}          : #{ec2_vpc}"
+      puts ''
+      puts "========================================================="
+      puts "#{ui.color('vpc-id', :magenta)}           : #{ec2_vpc}"
       puts "#{ui.color('subnet-ids', :magenta)}       : #{ec2_subnet1},#{ec2_subnet2}"
-      puts "#{ui.color('igw-id', :magenta)}          : #{ec2_igw}"
+      puts "#{ui.color('igw-id', :magenta)}           : #{ec2_igw}"
       puts "#{ui.color('security-group-id', :magenta)}: #{ec2_security}"
+      puts "========================================================="
+      puts ''
 
     end
 

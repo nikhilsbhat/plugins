@@ -27,31 +27,37 @@ module Engine
       option :build,
         :short => '-b BUILD_TOOL',
         :long => '--build BUILD_TOOL',
-        :description => "In which Environment the server has to be created.",
+        :description => "The build tool required for the environment like MAVEN, GRADDLE etc.",
         :default => "maven"
 
       option :artifact,
         :short => '-a ARTIFACT_TOOL',
         :long => '--artifact ARTIFACT_TOOL',
-        :description => "Which chef role to use. Run 'knifeknife role list' for a list of roles.",
+        :description => "The artifactory tool required for the environment like JFROG, NEXUS etc.",
         :default => "jfrog"
 
       option :ci,
         :short => '-i CI_SERVER',
         :long => '--ci CI_SERVER',
-        :description => "The flavor of server. The hardware capacities of the machine.",
+        :description => "The CI tool required for the environment like JENKINS, BAMBOO, TEAMCITY etc.",
+        :default => "jenkins"
+
+      option :monitering,
+        :short => '-m MONITERING_SERVER',
+        :long => '--monitering MONITERING_SERVER',
+        :description => "The monitering tool which helps to moniter the machines in the environment, for example SENSU, DATADOG etc.",
         :default => "jenkins"
 
       option :database,
         :short => '-d DATABASE',
         :long => '--database DATABASE',
-        :description => "In which Environment the server has to be created.",
+        :description => "The database tool required for the environment.",
         :default => "mysql"
 
       option :webserver,
         :short => '-w WEBSERVER',
         :long => '--webserver WEBSERVER',
-        :description => "Which chef role to use. Run 'knifeknife role list' for a list of roles.",
+        :description => "The webserver required for the environment for example TOMCAT, APACHE2 etc.",
         :default => "tomcat"
 
       option :uat_db_tr,
@@ -93,6 +99,7 @@ module Engine
       build = config[:build]
       artifact = config[:artifact]
       ci = config[:ci]
+      monitering = config[:monitering]
       architecture = config[:architecture]
       database = config[:database]
       webserver = config[:webserver]
@@ -113,6 +120,9 @@ module Engine
  # provisioning ci
      # create_machine(mngt_env,"management",ci,mngt_flavor)
 
+ # provisioning monitering
+     # create_machine(mngt_env,"management",monitering,mngt_flavor)
+
 
 #-----------------------creation-of-load_balancers-uat-----------------------
       if value_uat > 1
@@ -123,7 +133,7 @@ module Engine
       end
 #------------------------------uat-servers-----------------------------------
  # provisioning dev
-      #create_machine(uat_env,"development",database,uat_db_tr)
+      create_machine(uat_env,"development",database,uat_db_tr)
 
 #------------mechanism to create instance and add it into load balancer UAT--------
       if value_uat > 1
@@ -156,7 +166,7 @@ module Engine
       end
 #----------------------------prod-servers------------------------------------
  # provisioning prod
-      #create_machine(prod_env,"production",database,prod_db_tr)
+      create_machine(prod_env,"production",database,prod_db_tr)
 
 #------------mechanism to create instance for web and add it into load balancer PROD--------
       if value_prod > 1

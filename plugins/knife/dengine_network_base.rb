@@ -19,7 +19,12 @@ module Engine
       vpc = connection_resource.create_vpc({ cidr_block: vpc_cidr })
       vpc_id = "#{vpc.vpc_id}"
       vpc.create_tags({ tags: [{ key: 'Name', value: "#{name}" }]})
+      puts "#{ui.color('VPC creation in progress', :cyan)}"
+      puts ''
+
+      vpc.wait_until(max_attempts:10, delay:6) {|vpc| vpc.state == 'available' }
       puts "#{ui.color('VPC is created', :cyan)}"
+      puts ''
       return vpc_id
     end
 
@@ -30,7 +35,11 @@ module Engine
       subnet_id = subnet.id
       puts "."
       puts "."
-      puts "#{ui.color('subnet creation is finished', :cyan)}"
+      puts "#{ui.color('SUBNET creation in progress', :cyan)}"
+      puts ''
+
+      subnet.wait_until(max_attempts:10, delay:6) {|subnet| subnet.state == 'available' }
+      puts "#{ui.color('SUBNET is created', :cyan)}"
       puts ''
       return subnet_id
     end
@@ -44,6 +53,7 @@ module Engine
       puts "."
       puts "#{ui.color('IGW creation is complete', :cyan)}"
       puts ''
+
       return gate_way_id
     end
 
@@ -61,6 +71,7 @@ module Engine
       puts "#{ui.color('Attaching route table to the subnet', :cyan)}"
       table.associate_with_subnet({ subnet_id: subnet })
       puts ''
+
     end
 
     def create_security_group(name,vpc_id)
@@ -72,6 +83,7 @@ module Engine
       })
       security_id = security_group.group_id
       connection_client.authorize_security_group_ingress({dry_run: false, group_id: "#{security_id}", ip_protocol: "tcp", from_port: 0, to_port: 65535, cidr_ip: "0.0.0.0/0"})
+
       return security_id
     end
 
