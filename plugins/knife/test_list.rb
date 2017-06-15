@@ -9,11 +9,11 @@ class Chef
         def run
           node = "j*"
 
-          response = Hash.new
-          Chef::Search::Query.new.search(:role, "name:#{node}") do |n|
-          response[n.name] = n 
-          end
-          puts  response
+          #response = Hash.new
+          out_put = Chef::Search::Query.new
+          test = out_put.search(:node, 'role:sensu')
+          puts test.first
+          #puts out_put.name
 
           out,newary = Array.new
           search = Chef::Knife::Search.new

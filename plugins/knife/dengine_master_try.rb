@@ -4,7 +4,7 @@ require "#{File.dirname(__FILE__)}/dengine_elb_create"
 require "#{File.dirname(__FILE__)}/dengine_elb_add_instance"
 
 module Engine
-  class DengineMasterCreate < Chef::Knife
+  class DengineMasterTry < Chef::Knife
 
     def self.included(includer)
       includer.class_eval do
@@ -22,7 +22,7 @@ module Engine
 
     end
 
-    banner 'knife dengine master create (options)'
+    banner 'knife dengine master try (options)'
 
       option :build,
         :short => '-b BUILD_TOOL',
@@ -110,58 +110,14 @@ module Engine
       prod_wb_tr = config[:prod_wb_tr]
       value_prod = config[:prod_wb_no].to_i
 
-#---------------------------management-servers-------------------------------
- # provisioning monitering
-      moni_node = create_machine(mngt_env,"management",monitering,mngt_flavor)
-      moni_ip = fetch_ipaddress(moni_node)
-      store_item('MONITERING-SERVER-URL',"#{moni_ip}:3000")
-
- # provisioning build
-      build_node = create_machine(mngt_env,"management",build,mngt_flavor)
-      build_ip = fetch_ipaddress(build_node)
-
- # provisioning artifact
-      arti_node = create_machine(mngt_env,"management",artifact,"t2.small")
-      arti_ip = fetch_ipaddress(arti_node)
-      store_item('ARTIFACTORY-URL',"#{arti_ip}:8081/artifactory")
-
- # provisioning ci
-      ci_node = create_machine(mngt_env,"management",ci,"t2.small")
-      ci_ip = fetch_ipaddress(ci_node)
-      store_item('JENKINS-URL',"#{ci_ip}:8080")
-
 #-----------------------creation-of-load_balancers-uat-----------------------
+ # creating load_balancers
       if value_uat > 1
        puts "creating ELB"
        create_elb("#{uat_env}ELB",uat_env)
       else
-        puts "#{ui.color('Not creating load balancer as it was not opted', :cyan)}"
+        puts "#{ui.color('Not creating load balancer for UAT as it was not opted', :cyan)}"
       end
-
-#------------------------------uat-servers-----------------------------------
- # provisioning dev
-      create_machine(uat_env,"development",database,uat_db_tr)
-
-#------------mechanism to create instance and add it into load balancer UAT--------
-      if value_uat > 1
-        $i = 0 
-        while $i < value_uat  do
-          node_uat = create_machine(uat_env,"development-#$i",webserver,uat_wb_tr)
-
-         # fetching instance_id of machine
-
-          instance_id_uat = fetch_instance_id(node_uat)
-      #--------------------adding instance to load_balancers-uat--------------------
-      # addind instance to load_balancers
-
-          add_instance("#{uat_env}ELB",instance_id_uat)
-          $i +=1
-        end
-      else
-        create_machine(uat_env,"development",webserver,uat_wb_tr)
-      end
-
-#-----------------------------------------------------------------------------
 
 #-----------------------creation-of-load_balancers-prod----------------------
  # creating load_balancers
@@ -169,31 +125,40 @@ module Engine
         puts "creating ELB"
         create_elb("#{prod_env}ELB",prod_env)
       else
-        puts "#{ui.color('Not creating load balancer as it was not opted', :cyan)}"
+        puts "#{ui.color('Not creating load balancer for Production as it was not opted', :cyan)}"
       end
+
+#---------------------------management-servers-------------------------------
+
+      mngt_servers = Thread.new{create_mngt_servers(mngt_env,mngt_flavor,monitering,build,artifact,ci)}
+      #mngt_servers.join
+
+#------------------------------uat-servers-----------------------------------
+
+      uat_servers = Thread.new{create_uat_server(value_uat,uat_env,database,webserver,uat_db_tr,uat_wb_tr)}
+      #uat_servers.join
+
 #----------------------------prod-servers------------------------------------
- # provisioning prod
-      create_machine(prod_env,"production",database,prod_db_tr)
 
-#------------mechanism to create instance for web and add it into load balancer PROD--------
-      if value_prod > 1
-        $j = 0
-        while $j < value_prod  do
-        node_prod = create_machine(prod_env,"production-#$j",webserver,prod_wb_tr)
+      prod_servers = Thread.new{create_prod_server(value_prod,prod_env,database,webserver,prod_db_tr,prod_wb_tr)}
 
-        # fetching instance_id of machine
+      mngt_servers.join
+      uat_servers.join
+      prod_servers.join
 
-        instance_id_prod = fetch_instance_id(node_prod)
-        #--------------------adding instance to load_balancers-prod--------------------
-        # addind instance to load_balancers
+#-------------------------Storing data of management server into data bag for future use------------------------------------
 
-        add_instance("#{prod_env}ELB",instance_id_prod)
-        $j +=1
-        end
-     else 
-       create_machine(prod_env,"production",webserver,prod_wb_tr)
-     end
-#--------------------------------------------------------------------------------------------
+      mngt_ip = []
+      n = mngt_servers.value.size-1
+      mngt_servers.value.reverse.each {|i|
+                               mngt_ip[n] = fetch_ipaddress(i)
+                               n -=1
+      }
+      store_item('MONITERING-SERVER-URL',"#{mngt_ip[0]}:3000")
+      store_item('BUILD-SERVER-IP', "#{mngt_ip[1]}")
+      store_item('ARTIFACTORY-URL',"#{mngt_ip[2]}:8081/artifactory")
+      store_item('JENKINS-URL',"#{mngt_ip[3]}:8080")
+
     end
 
     def create_machine(network,env,role,flavor)
@@ -211,7 +176,7 @@ module Engine
     end
 
     def create_elb(elb_name,env)
-      
+
       elb_create = Engine::DengineElbCreate.new
       elb_create.config[:name]              = elb_name
       elb_create.config[:env]               = env
@@ -290,6 +255,79 @@ module Engine
         puts ''
       end
 
+    end
+
+    def create_mngt_servers(mngt_env,mngt_flavor,monitering,build,artifact,ci)
+
+      moni_node  = Thread.new{create_machine(mngt_env,"management",monitering,mngt_flavor)}
+      build_node = Thread.new{create_machine(mngt_env,"management",build,mngt_flavor)}
+      arti_node  = Thread.new{create_machine(mngt_env,"management",artifact,"t2.small")}
+      ci_node    = Thread.new{create_machine(mngt_env,"management",ci,"t2.small")}
+
+      moni_node.join
+      build_node.join
+      arti_node.join
+      ci_node.join
+
+      return moni_node.value,build_node.value,arti_node.value,ci_node.value
+
+    end
+
+    def create_uat_server(value_uat,uat_env,database,webserver,uat_db_tr,uat_wb_tr)
+     # provisioning Database machine for uat environment
+      udb = Thread.new{create_machine(uat_env,"development",database,uat_db_tr)}
+
+      #------------mechanism to create instance and add it into load balancer UAT--------
+      if value_uat > 1
+        
+        node_uat = []
+        value_uat.times do |n|
+        node_uat[n] =  Thread.new{create_machine(uat_env,"development-#{n}",webserver,uat_wb_tr)}
+        end
+
+        node_uat.each {|i|
+                       i.join;
+                        instance_id_uat = fetch_instance_id(i.value);
+                        add_instance("#{uat_env}ELB",instance_id_uat)
+        }
+
+      else
+
+      uwb = Thread.new{create_machine(uat_env,"development",webserver,uat_wb_tr)}
+      uwb.join
+
+      end
+
+    udb.join
+    end
+	
+    def create_prod_server(value_prod,prod_env,database,webserver,prod_db_tr,prod_wb_tr)
+
+    # provisioning Database machine for production environment
+      pdb = Thread.new{create_machine(prod_env,"production",database,prod_db_tr)}
+
+      #------------mechanism to create instance for web and add it into load balancer PROD--------
+      if value_prod > 1
+
+        node_prod = []
+        value_prod.times do |n|
+        node_prod[n] =  Thread.new{create_machine(prod_env,"production-#{n}",webserver,prod_wb_tr)}
+        end
+
+        node_prod.each {|i|
+                       i.join;
+                        instance_id_prod = fetch_instance_id(i.value);
+                        add_instance("#{prod_env}ELB",instance_id_prod)
+        }
+
+      else
+        
+      pwb = Thread.new{create_machine(prod_env,"production",webserver,prod_wb_tr)}
+      pwb.join
+
+      end
+
+      pdb.join
     end
 
   end
