@@ -13,6 +13,17 @@ module Engine
 
     banner 'knife dengine server create (options)'
 
+      option :app,
+        :short => '-a APP_NAME',
+        :long => '--app_name APP_NAME',
+        :description => "Name of the application for which the stack is being created."
+
+      option :id,
+        :short => '-i UNIQUE_ID',
+        :long => '--id UNIQUE_ID',
+        :description => "Give your server a unique ID inorder to make it different from others.",
+        :default => 0
+
       option :network,
         :short => '-n ENV_NETWORK',
         :long => '--network ENV_NETWORK',
@@ -37,18 +48,20 @@ module Engine
 
     def run
 
+      app_name       = config[:app]
+      id             = config[:id]
       flavor         = config[:flavor]
       role           = config[:role]
-      env            = config[:environment]
+      chef_env       = config[:environment]
       network        = config[:network]
 
       chef_role      = check_role(role)
-      node_name      = set_node_name(role,env,network)
+      node_name      = set_node_name(app_name,role,chef_env,id)
       runlist        = set_runlist(role)
       sg_group       = get_security_group(network)
       puts "#{runlist}"
-      env       = get_env(network)
-      chef_env = env.first
+      env            = get_env(network)
+      env            = env.first
       security_group = ["#{sg_group}"]
       puts "#{security_group}"
       image          = Chef::Config[:knife][:image]
@@ -57,7 +70,7 @@ module Engine
       identify_file  = Chef::Config[:knife][:identity_file]
       region         = Chef::Config[:knife][:region]
 
-      output = aws_server_create(node_name,runlist,chef_env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor)
+      output = aws_server_create(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
 
       return output
       #puts "#{output}"
@@ -71,30 +84,31 @@ module Engine
       chef_role.first
     end
 
-    def set_node_name(role,env,network)
-      "#{role}-#{env}-#{network}"
+    def set_node_name(app_name,role,chef_env,id)
+      "#{app_name}-#{role}-#{chef_env}-#{id}"
     end
 
     def set_runlist(role)
         ["role[#{role}]"]
     end
 
-    def aws_server_create(node_name,runlist,chef_env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor)
+    def aws_server_create(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
 
       aws_create = Chef::Knife::Ec2ServerCreate.new
 
       aws_create.config[:flavor]              = flavor
       aws_create.config[:image]               = image
-      aws_create.config[:security_group_ids]   = security_group
+      aws_create.config[:security_group_ids]  = security_group
       aws_create.config[:chef_node_name]      = node_name
       aws_create.config[:ssh_user]            = ssh_user
       aws_create.config[:ssh_port]            = 22
       aws_create.config[:ssh_key_name]        = ssh_key_name
       aws_create.config[:identity_file]       = identify_file
-      aws_create.config[:run_list]             = runlist
-      aws_create.config[:subnet_id]           = chef_env
+      aws_create.config[:run_list]            = runlist
+      aws_create.config[:subnet_id]           = env
       aws_create.config[:associate_public_ip] = true
       aws_create.config[:region]              = region
+      aws_create.config[:environment]         = chef_env
 
       value = aws_create.run
 

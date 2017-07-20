@@ -1,0 +1,108 @@
+require 'chef/knife'
+require 'json'
+
+module DengineApp
+    class UpdateDatabag < Chef::Knife
+
+      banner "knife update databag (options)"
+
+      option :app_name,
+        :short => '-a APP_NAME',
+        :long => '--app_name APP_NAME',
+        :description => "The name of the application that has to be deployed"
+
+      option :name,
+        :short => '-n APP_NAME',
+        :long => '--name APP_NAME',
+        :description => "The name of the application that has to be deployed"
+
+      option :url,
+        :short => '-u ENV_NAME',
+        :long => '--url ENV_NAME',
+        :description => "The name of the environment where the app has to be deployed"
+
+      option :servers_category,
+        :short => '-s ENV_NAME',
+        :long => '--servers_category ENV_NAME',
+        :description => "The name of the environment where the app has to be deployed"
+
+      option :servers_type,
+        :short => '-t ENV_NAME',
+        :long => '--servers_type ENV_NAME',
+        :description => "The name of the environment where the app has to be deployed"
+
+        def run
+
+          app = config[:app_name]
+          name = config[:name]
+          url = config[:url]
+          servers_category = config[:servers_category]
+          servers_type = config[:servers_type]
+          store_item(app,name,url,servers_category,servers_type)
+
+        end
+
+        def store_item(app,name,url,servers_category,servers_type)
+          servers_cat = fetch_category(servers_category,app)
+          if Chef::DataBag.list.key?("serverdetails")
+            puts ''
+            puts "#{ui.color('Found databag for this', :cyan)}"
+            puts "#{ui.color('Writing data in to the data bag item', :cyan)}"
+            puts ''
+            data = {
+                      "node_name": "#{name}",
+                      "url": "#{url}"
+                   }
+            #serverdatabag = Chef::DataBagItem.load('serverdetails', servers_cat)
+            query = Chef::Search::Query.new
+            dat = query.search(:serverdetails, "id:java_management_servers")
+            if dat.last == 0
+            puts "not found"
+            else
+            puts "found"
+            puts dat.size
+            end
+            serverdatabag.raw_data["#{servers_type}"] = data
+            serverdatabag.save
+            puts "#{ui.color('Data has been written in to databag successfully', :cyan)}"
+          else
+            puts ''
+            puts "#{ui.color('Was not able to find databag for this', :cyan)}"
+            puts "#{ui.color('Hence creating databag', :cyan)}"
+            puts ''
+            users = Chef::DataBag.new
+            users.name("serverdetails")
+            users.create
+            data = {
+                    "id" => "#{servers_cat}",
+                    "#{servers_type}" => {
+                      "node_name"=> "#{name}",
+                      "url" => "#{url}"
+                    }
+                   }
+            databag_item = Chef::DataBagItem.new
+            databag_item.data_bag("serverdetails")
+            databag_item.raw_data = data
+            databag_item.save
+          end
+
+        end
+
+        def fetch_category(servers_category,app)
+
+          if servers_category == 'management_servers'
+            return "#{app}_management_servers"
+          elsif servers_category == 'uat_servers'
+            return "#{app}_uat_servers"
+          elsif servers_category == 'dev_servers'
+            return "#{app}_dev_servers"
+          elsif servers_category == 'test_servers'
+            return "#{app}_test_servers"
+          else  servers_category == 'prod_servers'
+            return "#{app}_prod_servers"
+          end
+
+        end
+
+  end
+end

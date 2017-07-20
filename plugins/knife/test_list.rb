@@ -7,7 +7,11 @@ class Chef
         banner "knife test list"
 
         def run
-          node = "j*"
+          node = "nikhil"
+
+          out_put1 = Chef::Search::Query.new
+          test1 = out_put1.search('node', "role:maven AND chef_environment:_default")
+          puts test1.first
 
           #response = Hash.new
           out_put = Chef::Search::Query.new
@@ -17,7 +21,7 @@ class Chef
 
           out,newary = Array.new
           search = Chef::Knife::Search.new
-          search.name_args = ['role', "name:#{node}"]
+          search.name_args = ['node', "role:maven AND chef_environment:production"]
           out = search.run
 
           nik = out.join(',').to_s
@@ -26,6 +30,8 @@ class Chef
           #puts test1
           newary = test1.split(/,/)
           puts newary
+
+#--------------------------------------------------------------------
         end
     end
   end

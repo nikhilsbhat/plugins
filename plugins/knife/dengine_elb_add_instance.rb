@@ -41,8 +41,8 @@ module Engine
       def get_target_arn(name)
         puts "#{ui.color('fetching target ARN from databag', :cyan)}"
         data_item_env = Chef::DataBagItem.new
-        data_item_env.data_bag(name)
-        data_value_env = Chef::DataBagItem.load(name,name)
+        data_item_env.data_bag("loadbalancers")
+        data_value_env = Chef::DataBagItem.load("loadbalancers",name)
         data_env = data_value_env.raw_data['TARGET-GROUP-ARN']
 
       end
