@@ -52,10 +52,10 @@ module Engine
         :description => "The CI tool required for the environment like JENKINS, BAMBOO, TEAMCITY etc.",
         :default => "jenkins"
 
-    option :monitering,
-        :short => '-m MONITERING_SERVER',
-        :long => '--monitering MONITERING_SERVER',
-        :description => "The monitering tool which helps to moniter the machines in the environment, for example SENSU, DATADOG etc.",
+    option :monitoring,
+        :short => '-m MONITORING_SERVER',
+        :long => '--monitoring MONITORING_SERVER',
+        :description => "The monitoring tool which helps to moniter the machines in the environment, for example SENSU, DATADOG etc.",
         :default => "sensu"
 
     option :log_management,
@@ -146,7 +146,7 @@ module Engine
       artifact = config[:artifact]
       ci = config[:ci]
       log_node = config[:log_management]
-      monitering = config[:monitering]
+      monitoring = config[:monitoring]
       architecture = config[:architecture]
       database = config[:database]
       webserver = config[:webserver]
@@ -182,7 +182,7 @@ module Engine
 
 #---------------------------management-servers-------------------------------
 
-      mngt_servers = Thread.new{create_mngt_servers(app,mngt_network,mngt_env,mngt_flavor,monitering,build,artifact,ci,log_node)}
+      mngt_servers = Thread.new{create_mngt_servers(app,mngt_network,mngt_env,mngt_flavor,monitoring,build,artifact,ci,log_node)}
 
 #------------------------------dev-servers-----------------------------------
 
@@ -214,7 +214,7 @@ module Engine
                                mngt_ip.store(i,ip);
       }
 
-      store_item(app,"#{mngt_ip.keys[0]}","http://#{mngt_ip.values[0]}:3000","management_servers","monitering")
+      store_item(app,"#{mngt_ip.keys[0]}","http://#{mngt_ip.values[0]}:3000","management_servers","monitoring")
       sleep(5)
       store_item(app,"#{mngt_ip.keys[1]}","#{mngt_ip.values[1]}","management_servers","build")
       sleep(5)
@@ -351,10 +351,10 @@ module Engine
 
 #---------------------------------------------------------------
 
-    def create_mngt_servers(app,mngt_network,mngt_env,mngt_flavor,monitering,build,artifact,ci,log_node)
+    def create_mngt_servers(app,mngt_network,mngt_env,mngt_flavor,monitoring,build,artifact,ci,log_node)
 
       id = 0
-      moni_node  = Thread.new{create_machine(app,mngt_network,mngt_env,monitering,mngt_flavor,id)}
+      moni_node  = Thread.new{create_machine(app,mngt_network,mngt_env,monitoring,mngt_flavor,id)}
       build_node = Thread.new{create_machine(app,mngt_network,mngt_env,build,mngt_flavor,id)}
       arti_node  = Thread.new{create_machine(app,mngt_network,mngt_env,artifact,"t2.small",id)}
       ci_node    = Thread.new{create_machine(app,mngt_network,mngt_env,ci,"t2.small",id)}
