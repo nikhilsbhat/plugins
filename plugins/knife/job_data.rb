@@ -3,7 +3,7 @@ require 'json'
 
 class Chef
   class Knife
-    class DengineBuildUpdate < Knife
+    class JobData < Knife
 
       banner "knife job data (options)"
 

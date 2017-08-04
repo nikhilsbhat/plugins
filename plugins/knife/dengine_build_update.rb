@@ -22,9 +22,9 @@ module DengineApp
           id = config[:id]
 
           data_bag_dir = "/root/chef-repo/data_bags/#{name}"
+          file_location = "#{data_bag_dir}/#{name}.json"
           if ensure_dir(data_bag_dir) == true
 
-            file_location = "#{data_bag_dir}/#{name}.json"
             update_data_bag_item(file_location,id,name)
 
           else 
@@ -73,7 +73,6 @@ module DengineApp
         end
 
         def update_data_bag_item(file_location,id,name)
-
           if ensure_file(file_location) == true
 
             update_data_bag(file_location,id,name)
@@ -84,6 +83,7 @@ module DengineApp
             puts "#{ui.color('Creating a new data_bag_item with the name: job-id', :cyan)}"
             system("cp /root/chef-repo/templates/#{name}.json /root/chef-repo/data_bags/#{name}/#{name}.json")
             system("knife data bag from file #{name} #{file_location}")
+            sleep(10)
             update_data_bag(file_location,id,name)
 
           end
