@@ -59,21 +59,23 @@ module Engine
       node_name      = set_node_name(app_name,role,chef_env,id)
       runlist        = set_runlist(role)
       sg_group       = get_security_group(network)
-      puts "#{runlist}"
       env            = get_env(network)
       env            = env.first
       security_group = ["#{sg_group}"]
-      puts "#{security_group}"
       image          = Chef::Config[:knife][:image]
       ssh_user       = "ubuntu"
-      ssh_key_name   = "chef-coe"
+      ssh_key_name   = Chef::Config[:knife][:ssh_key_name]
       identify_file  = Chef::Config[:knife][:identity_file]
       region         = Chef::Config[:knife][:region]
 
       output = aws_server_create(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
 
+      if role == 'tomcat'
+        chek_node_existence_and_set(node_name)
+      else
+        puts "#{ui.color('Since I am not a part of web servers my attributes are not set to default values for web', :cyan)}"
+      end
       return output
-      #puts "#{output}"
 
     end
 
