@@ -1,6 +1,6 @@
 require 'chef/knife'
-require "#{File.dirname(__FILE__)}/dengine_azure_interface"
-require "#{File.dirname(__FILE__)}/dengine_aws_interface"
+require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
+require "#{File.dirname(__FILE__)}/base/dengine_aws_interface"
 
 module Engine
   class DengineNetworkCreate < Chef::Knife

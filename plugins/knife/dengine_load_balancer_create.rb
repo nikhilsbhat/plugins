@@ -1,7 +1,7 @@
 require 'chef/knife'
-require "#{File.dirname(__FILE__)}/dengine_azure_interface"
-require "#{File.dirname(__FILE__)}/dengine_aws_interface"
-require "#{File.dirname(__FILE__)}/dengine_data_tresure"
+require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
+require "#{File.dirname(__FILE__)}/base/dengine_aws_interface"
+require "#{File.dirname(__FILE__)}/base/dengine_data_tresure"
 
 module Engine
   class DengineLoadBalancerCreate < Chef::Knife
