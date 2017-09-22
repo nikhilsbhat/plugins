@@ -1,4 +1,3 @@
-require 'chef/knife'
 require "#{File.dirname(__FILE__)}/dengine_client_base"
 require "#{File.dirname(__FILE__)}/dengine_data_tresure"
 
@@ -7,6 +6,12 @@ module Engine
 
     include DengineClientBase
     include DengineDataTresure
+
+    deps do
+      require 'fog/aws'
+      require 'chef/knife/ec2_server_create'
+      Chef::Knife::Ec2ServerCreate.load_deps
+    end
 
 #-----------------------------------creating VPC--------------------------------------
     def create_vpc(name,vpc_cidr)
@@ -268,6 +273,33 @@ module Engine
 
     end
 
+#--------------------------creation of server-----------------------------
+
+    def server_create(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
+
+      create = Chef::Knife::Ec2ServerCreate.new
+
+      create.config[:flavor]              = flavor
+      create.config[:image]               = image
+      create.config[:security_group_ids]  = security_group
+      create.config[:chef_node_name]      = node_name
+      create.config[:ssh_user]            = ssh_user
+      create.config[:ssh_port]            = 22
+      create.config[:ssh_key_name]        = ssh_key_name
+      create.config[:identity_file]       = identify_file
+      create.config[:run_list]            = runlist
+      create.config[:subnet_id]           = env
+      create.config[:associate_public_ip] = true
+      create.config[:region]              = region
+      create.config[:environment]         = chef_env
+
+      value = create.run
+
+      puts "NODE-NAME: #{node_name}"
+      puts "ENV      :#{chef_env}"
+      puts "-------------------------"
+
+    end
 
   end
 end

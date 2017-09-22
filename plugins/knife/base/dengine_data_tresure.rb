@@ -2,6 +2,21 @@ require 'chef/knife'
 
 module Engine
   module DengineDataTresure
+
+    def check_role(role)
+      query = Chef::Search::Query.new
+      chef_role = query.search('role', "name:#{role}").first
+      crap_out "No role '#{role}' found on the server" if chef_role.empty?
+      chef_role.first
+    end
+
+    def set_node_name(app_name,role,chef_env,id)
+      "#{app_name}-#{role}-#{chef_env}-#{id}"
+    end
+
+    def set_runlist(role)
+        ["role[#{role}]"]
+    end
   
     def get_security_group(env)
  
