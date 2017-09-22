@@ -9,6 +9,8 @@ module Engine
 
     deps do
       require 'fog/aws'
+      require 'readline'
+      require 'chef/json_compat'
       require 'chef/knife/ec2_server_create'
       Chef::Knife::Ec2ServerCreate.load_deps
     end
@@ -275,7 +277,7 @@ module Engine
 
 #--------------------------creation of server-----------------------------
 
-    def server_create(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
+    def create_server(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
 
       create = Chef::Knife::Ec2ServerCreate.new
 

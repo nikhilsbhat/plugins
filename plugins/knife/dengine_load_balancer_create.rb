@@ -66,7 +66,8 @@ module Engine
       option :resource_group,
         :short => '-r RESOURCE_GROUP_NAME',
         :long => '--resource-group-name RESOURCE_GROUP_NAME',
-        :description => "The name of Resource group in which the network that has to be created"
+        :description => "The name of Resource group in which the network that has to be created",
+        :default => "Dengine"
 
     def run
 

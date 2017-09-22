@@ -1,6 +1,6 @@
 require 'chef/knife'
-require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
-require "#{File.dirname(__FILE__)}/base/dengine_aws_interface"
+#require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
+#require "#{File.dirname(__FILE__)}/base/dengine_aws_interface"
 require "#{File.dirname(__FILE__)}/base/dengine_google_interface"
 require "#{File.dirname(__FILE__)}/base/dengine_data_tresure"
 
@@ -8,6 +8,15 @@ module Engine
   class DengineServerCreate < Chef::Knife
 
     include DengineDataTresure
+
+    deps do
+      require "#{File.dirname(__FILE__)}/base/dengine_aws_interface"
+      Engine::DengineAwsInterface.load_deps
+      require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
+      Engine::DengineAzureInterface.load_deps
+#      require "#{File.dirname(__FILE__)}/base/dengine_google_interface"
+#      Engine::DengineGoogleInterface.load_deps
+    end
 
     banner 'knife dengine server create (options)'
 
@@ -94,13 +103,15 @@ module Engine
       if config[:cloud] == "aws"
 
         sg_group       = get_security_group("#{config[:network]}")
+        puts "#{sg_group}"
         got_env        = get_subnet_id("#{config[:network]}")
         env            = got_env.first
+        puts "#{env}"
         security_group = ["#{sg_group}"]
         image          = Chef::Config[:knife][:image]
         region         = Chef::Config[:knife][:region]
 
-        @client.server_create(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
+        @client.create_server(node_name,runlist,env,security_group,image,ssh_user,ssh_key_name,identify_file,region,flavor,chef_env)
         return node_name
 
       elsif config[:cloud] == "azure"

@@ -2,7 +2,7 @@ require 'chef/knife'
 require "#{File.dirname(__FILE__)}/dengine_server_base"
 
 module Engine
-    class DengineServerCreate < Chef::Knife
+    class DengineAwsServerCreate < Chef::Knife
 
     include DengineServerBase
 
@@ -11,7 +11,7 @@ module Engine
       Chef::Knife::Ec2ServerCreate.load_deps
     end
 
-    banner 'knife dengine server create (options)'
+    banner 'knife dengine aws server create (options)'
 
       option :app,
         :short => '-a APP_NAME',

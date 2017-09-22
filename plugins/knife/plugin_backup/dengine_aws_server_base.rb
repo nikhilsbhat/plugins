@@ -1,7 +1,7 @@
 require 'chef/knife'
 
 module Engine
-    module DengineServerBase
+    module DengineAwsServerBase
 
       def get_env(env)
 
