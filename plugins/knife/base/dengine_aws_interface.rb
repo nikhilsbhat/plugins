@@ -304,5 +304,26 @@ module Engine
 
     end
 
+#-------------------------------server backup---------------------------
+
+    def create_image(instance_id,image_name,descrip)
+
+      puts "#{ui.color('Started capturing image of the server with ID', :cyan)}:  #{instance_id}"
+      puts "."
+      puts "#{ui.color('Capturing image in progress', :cyan)}"
+      puts "."
+      image = aws_connection_client.create_image(instance_id: "#{instance_id}", name: "#{image_name}", description: "#{descrip}",)
+      image_id = image.image_id
+      puts "#{ui.color('Image successfully captured', :cyan)}"
+      aws_connection_client.create_tags({ resources: ["#{image_id}"], tags: [{ key: 'Name', value: "#{image_name}" }]})
+      puts ''
+      puts "========================================================="
+      puts "#{ui.color('image-name', :magenta)}       : #{image_name}"
+      puts "#{ui.color('image-id', :magenta)}         : #{image_id}"
+      puts "========================================================="
+      puts ''
+
+    end
+
   end
 end
