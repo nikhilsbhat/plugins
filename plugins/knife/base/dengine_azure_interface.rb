@@ -257,6 +257,7 @@ module Engine
 
     def create_storage_account(resource_group,name)
 
+      strage_name = name.downcase
       time = Time.new
       params = Azure::ARM::Storage::Models::StorageAccountCreateParameters.new
       params.location = 'CentralIndia'
@@ -265,7 +266,7 @@ module Engine
       params.sku = sku
       params.kind = Models::Kind::Storage
       puts "Creating Storage Account #{time.hour}:#{time.min}:#{time.sec}"
-      promise = azure_storage_client.storage_accounts.create("#{resource_group}", "#{name}", params)
+      promise = azure_storage_client.storage_accounts.create("#{resource_group}", "#{storage_name}", params)
       t = Time.new
       puts "Created Storage Account #{t.hour}:#{t.min}:#{t.sec}"
     end
