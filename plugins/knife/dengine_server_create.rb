@@ -14,8 +14,6 @@ module Engine
       Engine::DengineAwsInterface.load_deps
       require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
       Engine::DengineAzureInterface.load_deps
-#      require "#{File.dirname(__FILE__)}/base/dengine_google_interface"
-#      Engine::DengineGoogleInterface.load_deps
     end
 
     banner 'knife dengine server create (options)'
@@ -68,6 +66,21 @@ module Engine
         :description => "Size of the persistent boot disk between 10 and 10000 GB, specified in GB; default is '10' GB, this is exclusively for GCP",
         :default => "10"
 
+      option :resource_group,
+        :long => '--resource-group-name RESOURCE_GROUP_NAME',
+        :description => "The name of Resource group in which the network that has to be created",
+        :default => "Dengine"
+
+      option :lb_name,
+        :long => '--lb-name LOAD_BALANCER_NAME',
+        :description => "The name of the load balancer to which the vm has to be attached, this is exclusively for AZURE",
+        :default => "null"
+
+      option :storage_account,
+        :long => '--storage-account STORAGE_ACCOUNT',
+        :description => "The name of the storage account in which the vm has to be created, this is exclusively for AZURE",
+        :default => "dengine"
+
     def run
 
       if config[:cloud] == "aws"
@@ -80,7 +93,7 @@ module Engine
         puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
         exit
         @client = ''
-	  elsif (config[:cloud].nil?)
+      elsif (config[:cloud].nil?)
         Chef::Log.error "You have misspell the word or you might have not chose the cloud provider "
         exit
       end
@@ -99,14 +112,14 @@ module Engine
       ssh_user       = "#{config[:machine_user]}"
       ssh_key_name   = Chef::Config[:knife][:ssh_key_name]
       identify_file  = Chef::Config[:knife][:identity_file]
+      get_subnet     = fetch_data("networks","#{config[:network]}","SUBNET-ID")
+      get_vpc        = fetch_data("networks","#{config[:network]}","VPC-ID")
+      gateway_key    = Chef::Config[:knife][:gateway_key]
 
       if config[:cloud] == "aws"
 
-        sg_group       = get_security_group("#{config[:network]}")
-        puts "#{sg_group}"
-        got_env        = get_subnet_id("#{config[:network]}")
-        env            = got_env.first
-        puts "#{env}"
+        sg_group       = fetch_data("networks","#{config[:network]}","SECURITY-ID")
+        env            = get_subnet.first
         security_group = ["#{sg_group}"]
         image          = Chef::Config[:knife][:image]
         region         = Chef::Config[:knife][:region]
@@ -115,22 +128,44 @@ module Engine
         return node_name
 
       elsif config[:cloud] == "azure"
+
+        env                  = get_vpc
+        subnet               = get_subnet.first
+        image                = Chef::Config[:knife][:azure_image]
+        resource_group       = "#{config[:resource_group]}"
+        region               = Chef::Config[:knife][:azure_service_location]
+        storage_account      = "#{config[:storage_account]}"
+        storage_account_type = "Standard_LRS"
+        ssh_pub_key          = Chef::Config[:knife][:public_key]
+        puts "load balancer name: #{config[:lb_name]}"
+
+        if config[:lb_name] == "null"
+          puts "#{ui.color('I am not part of any load balancer', :cyan)}"
+        else
+          availability_set     = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-AVAILABILITY-SET")
+          lb                   = config[:lb_name]
+          nat_rule             = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-NAT-RULES").first
+          backend_pool         = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-BACK-END-POOL")
+        end
+
+        @client.create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist)
+
       elsif config[:cloud] == "google"
 
-#        sg_group       = get_security_group("#{config[:cloud}-#{config[:network]}")
-#        got_env        = get_env("#{config[:cloud}-#{config[:network]}")
         env            = ""
         boot_disk      = config[:boot_disk_size]
         network        = "#{config[:network]}"
         image          = Chef::Config[:knife][:gce_image]
-        gateway_key    = Chef::Config[:knife][:gateway_key]
         zone           = Chef::Config[:knife][:gce_zone]
 
         @client.server_create(node_name,runlist,env,network,image,ssh_user,ssh_key_name,identify_file,flavor,chef_env,gateway_key,zone,boot_disk)
         return node_name
 
       elsif config[:cloud] == "openstack"
-	  elsif (config[:cloud].nil?)
+
+
+
+      elsif (config[:cloud].nil?)
         Chef::Log.error "You have misspell the word or you might have not chose the cloud provider "
         exit
       end

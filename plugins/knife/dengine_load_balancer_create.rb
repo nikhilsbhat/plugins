@@ -122,7 +122,7 @@ module Engine
       elsif config[:cloud] == "azure"
 
         resource_group = config[:resource_group]
-        name = config[:name]
+        name = "#{config[:cloud]}-#{config[:type]}-#{config[:name]}"
         if config[:type] == "application"
           puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
           exit
@@ -234,13 +234,13 @@ module Engine
           exit
         else
           puts "#{ui.color("The data bag item #{config[:cloud]}-#{config[:type]}-#{config[:name]} is not present")}"
-          puts "#{ui.color("Hence we are Creating #{config[:cloud]}-#{config[:type]}-#{config[:name]}_loadbalancer ", :cyan)}"
+          puts "#{ui.color("Hence we are Creating #{config[:cloud]}-#{config[:type]}-#{config[:name]}-loadbalancer ", :cyan)}"
           return 0
         end
       else
         puts ''
         puts "#{ui.color("Didn't found databag for this", :cyan)}"
-        puts "#{ui.color("Hence we are Creating #{config[:cloud]}-#{config[:type]}-#{config[:name]}_loadbalancer ", :cyan)}"
+        puts "#{ui.color("Hence we are Creating #{config[:cloud]}-#{config[:type]}-#{config[:name]}-loadbalancer ", :cyan)}"
         return 0
       end	  
     end
@@ -269,10 +269,10 @@ module Engine
                  'id' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}",
                  'CLOUD' => "#{config[:cloud]}",
                  'ALB-NAME' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}",
-                 'ALB_DNS' => "#{elb_dns}",
-                 'ALB_BACK_END_POOL' => "#{config[:name]}_vm_pool",
-                 'ALB_NAT_RULES' => ["nat1","nat2","nat3"],
-                 'ALB_AVAILABILITY_SET' => "#{config[:name]}_availability_set"
+                 'ALB-DNS' => "#{elb_dns}",
+                 'ALB-BACK-END-POOL' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}-vm-pool",
+                 'ALB-NAT-RULES' => ["nat1","nat2","nat3"],
+                 'ALB-AVAILABILITY-SET' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}-availability-set"
                  }
         elsif config[:cloud] == "google"
         elsif config[:cloud] == "openstack"
@@ -309,10 +309,10 @@ module Engine
                  'id' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}",
                  'CLOUD' => "#{config[:cloud]}",
                  'ALB-NAME' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}",
-                 'ALB_DNS' => "#{elb_dns}",
-                 'ALB_BACK_END_POOL' => "#{config[:name]}_vm_pool",
-                 'ALB_NAT_RULES' => ["nat1","nat2","nat3"],
-                 'ALB_AVAILABILITY_SET' => "#{config[:name]}_availability_set"
+                 'ALB-DNS' => "#{elb_dns}",
+                 'ALB-BACK-END-POOL' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}-vm-pool",
+                 'ALB-NAT-RULES' => ["nat1","nat2","nat3"],
+                 'ALB-AVAILABILITY-SET' => "#{config[:cloud]}-#{config[:type]}-#{config[:name]}-availability-set"
                  }
         elsif config[:cloud] == "google"
         elsif config[:cloud] == "openstack"

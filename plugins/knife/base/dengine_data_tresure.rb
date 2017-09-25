@@ -6,7 +6,7 @@ module Engine
     def check_role(role)
       query = Chef::Search::Query.new
       chef_role = query.search('role', "name:#{role}").first
-      crap_out "No role '#{role}' found on the server" if chef_role.empty?
+#      crap_out "No role '#{role}' found on the server" if chef_role.empty?
       chef_role.first
     end
 
@@ -16,6 +16,15 @@ module Engine
 
     def set_runlist(role)
         ["role[#{role}]"]
+    end
+
+    def fetch_data(data_bag,databag_item,resource)
+
+      data_item_sg = Chef::DataBagItem.new
+      data_item_sg.data_bag(data_bag)
+      data_value_sg = Chef::DataBagItem.load(data_bag,databag_item)
+      data_sg = data_value_sg.raw_data["#{resource}"]
+
     end
   
     def get_security_group(env)

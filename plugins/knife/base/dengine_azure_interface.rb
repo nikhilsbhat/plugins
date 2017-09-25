@@ -1,11 +1,16 @@
 require 'chef/knife'
 require "#{File.dirname(__FILE__)}/dengine_client_base"
+#require "#{File.dirname(__FILE__)}/azure/azure_server_create"
 
 module Engine
   class DengineAzureInterface < Chef::Knife
 
     include DengineClientBase
 
+    deps do
+      require "#{File.dirname(__FILE__)}/azure/azure_server_create"
+      Chef::Knife::AzureServerCreate.load_deps
+    end
 #---------------------Creation of VPN----------------------------
 	
     def create_vpc(resource_group, name, vpn_cidr)
@@ -120,7 +125,7 @@ module Engine
       params.location = "CentralIndia"
       puts ''
       puts "#{ui.color('avalablility set creation in progress', :cyan)}"
-      promise = azure_compute_client.availability_sets.create_or_update("#{resource_group}", "#{name}_availability_set", params)
+      promise = azure_compute_client.availability_sets.create_or_update("#{resource_group}", "#{name}-availability-set", params)
       puts ''
       puts "#{ui.color('avalablility set creation is completed', :cyan)}"
       puts "========================================================="
@@ -178,7 +183,7 @@ module Engine
                 ],
             backend_address_pool_names:
                 [
-                    "#{name}_vm_pool"
+                    "#{name}-vm-pool"
                 ],
             probes:
                 [
@@ -190,15 +195,15 @@ module Engine
                     interval_in_seconds: 5,
                     load_balancing_rules: 'lb_rule',
                     number_of_probes: 2,
-                    load_balancing_rule_id: "/subscriptions/0594cd49-9185-425d-9fe2-8d051e4c6054/resourceGroups/#{resource_group}/providers/Microsoft.Network/loadBalancers/#{name}/loadBalancingRules/lb_rule"
+                    load_balancing_rule_id: "/subscriptions/0594cd49-9185-425d-9fe2-8d051e4c6054/resourceGroups/#{resource_group}/providers/Microsoft.Network/loadBalancers/#{name}/loadBalancingRules/lb-rule"
                   }
                 ],
             load_balancing_rules:
                 [
                   {
-                    name: 'lb_rule',
+                    name: 'lb-rule',
                     frontend_ip_configuration_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/loadBalancers/#{name}/frontendIPConfigurations/#{name}-lbip",
-                    backend_address_pool_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/loadBalancers/#{name}/backendAddressPools/#{name}_vm_pool",
+                    backend_address_pool_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/loadBalancers/#{name}/backendAddressPools/#{name}-vm-pool",
                     protocol: 'Tcp',
                     frontend_port: '80',
                     backend_port: '80',
@@ -247,6 +252,63 @@ module Engine
 
       return lb_dns_name
     end
+
+#---------------------------------resource creation--------------------------------
+
+    def create_storage_account(resource_group,name)
+
+      time = Time.new
+      params = Azure::ARM::Storage::Models::StorageAccountCreateParameters.new
+      params.location = 'CentralIndia'
+      sku = Models::Sku.new
+      sku.name = 'Standard_LRS'
+      params.sku = sku
+      params.kind = Models::Kind::Storage
+      puts "Creating Storage Account #{time.hour}:#{time.min}:#{time.sec}"
+      promise = azure_storage_client.storage_accounts.create("#{resource_group}", "#{name}", params)
+      t = Time.new
+      puts "Created Storage Account #{t.hour}:#{t.min}:#{t.sec}"
+    end
+
+    def create_resource_group(name)
+
+      params = Azure::ARM::Resources::Models::ResourceGroup.new
+      params.location = 'CentralIndia'
+      promise = azure_resource_client.resource_groups.create_or_update("#{name}", params, custom_headers = nil)
+    end
+
+#--------------------------------------server creation----------------------------------
+
+    def create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist)
+
+      create = Chef::Knife::AzureServerCreate.new
+
+      create.config[:flavor]                      = flavor
+      create.config[:azure_image_os_type]         = image
+      create.config[:azure_vm_name]               = node_name
+      create.config[:ssh_user]                    = ssh_user
+      create.config[:ssh_port]                    = 22
+      create.config[:ssh_public_key]              = ssh_pub_key
+      create.config[:ssh_gateway_identity]        = gateway_key
+      create.config[:run_list]                    = runlist
+      create.config[:azure_service_location]      = region
+      create.config[:azure_vnet_subnet_name]      = subnet
+      create.config[:azure_vnet_name]             = env
+      create.config[:azure_storage_account]       = storage_account
+      create.config[:azure_storage_account_type]  = storage_account_type
+      create.config[:azure_availability_set]      = availability_set
+      create.config[:azure_loadbalancer_name]     = lb
+      create.config[:azure_vm_nat_rule]           = nat_rule
+      create.config[:azure_backend_pool]          = backend_pool
+
+      create.config[:environment]                 = chef_env
+      value = create.run
+
+      puts "-------------------------"
+      puts "NODE-NAME: #{node_name}"
+      puts "ENV      : #{chef_env}"
+      puts "-------------------------"
+   end
 
   end
 end

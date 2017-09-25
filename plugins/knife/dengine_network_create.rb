@@ -63,7 +63,6 @@ module Engine
 
     def check_data_bag
       if Chef::DataBag.list.key?("networks")
-        puts "#{config[:name]}_network"
         puts ''
         puts "#{ui.color('Found databag for this', :cyan)}"
         puts "#{ui.color('Searching data for current application in to the data bag', :cyan)}"
@@ -175,7 +174,7 @@ module Engine
        if config[:cloud] == "azure"
        data = {
               'id' => "azure_#{name}",
-              'VPN-ID' => "#{name}_vpn",
+              'VPC-ID' => "#{name}_vpn",
               'SUBNET-ID' => ["#{name}_sub1","#{name}_sub2"],
               'SECURITY-ID' => ["#{name}_nsg1","#{name}_nsg2"],
               'ROUTE-ID' => ["#{name}_route_table1","#{name}_route_table2"]
@@ -209,7 +208,7 @@ module Engine
        if config[:cloud] == "azure"
        data = {
               'id' => "azure_#{name}",
-	      'VPN-ID' => "#{name}_vpn",
+	      'VPC-ID' => "#{name}_vpn",
               'SUBNET-ID' => ["#{name}_sub1","#{name}_sub2"],
               'SECURITY-ID' => ["#{name}_nsg1","#{name}_nsg2"],
               'ROUTE-ID' => ["#{name}_route_table1","#{name}_route_table2"]

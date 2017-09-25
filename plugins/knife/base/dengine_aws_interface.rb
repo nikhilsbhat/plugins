@@ -297,8 +297,9 @@ module Engine
 
       value = create.run
 
+      puts "-------------------------"
       puts "NODE-NAME: #{node_name}"
-      puts "ENV      :#{chef_env}"
+      puts "ENV      : #{chef_env}"
       puts "-------------------------"
 
     end
