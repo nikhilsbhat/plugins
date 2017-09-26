@@ -122,6 +122,31 @@ module Engine
       end
 
 #------------------------------Client initiation for GOOGLE------------------------
+
+
+      def google_connection_api
+        return @google_connection_api unless @google_connection_api.nil?
+
+        @google_connection_api = Google::Apis::ComputeV1::ComputeService.new
+        @google_connection_api.google_api_authorization = google_api_authorization
+        @google_connection_api.client_options = Google::Apis::ClientOptions.new.tap do |opts|
+          opts.application_name    = "knife-google"
+          opts.application_version = Knife::Google::VERSION
+        end
+
+        @google_connection_api
+      end
+
+      def google_api_authorization
+        @google_api_authorization ||= Google::Auth.get_application_default(
+          [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/compute"
+          ]
+        )
+      end
+
+#------------------------------------------------------------------------------------------
     end
   end
 end
