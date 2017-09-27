@@ -32,23 +32,37 @@ module Engine
       puts ''
       puts "========================================================="
       puts "#{ui.color('VPN name is:', :magenta)}   :#{promise.name}"
-	  puts "#{ui.color('VPN id is:', :magenta)}     :#{promise.id}"
-#      puts "name = #{promise.name}"
-#      puts "id = #{promise.id}"
+      puts "#{ui.color('VPN id is:', :magenta)}     :#{promise.id}"
       puts "========================================================="
+
+      return promise.name
     end
 
 #----------------------Creation of Subnets------------------------
 
-    def create_subnet(name,cidr, vpn_name, nsg_name, route_table, resource_group)
+    def create_subnet(name,cidr,vpn_name,resource_group,id)
+
+    nsg = create_security_group("#{name}_nsg_#{id}", resource_group)
+          create_security_rule_for_nsg("rule_#{id}", nsg, cidr, resource_group)
+    route = create_route_table("#{name}_route_#{id}", cidr, resource_group)
+    
+
     subnet = azure_network_service.subnets.create(
-      name: "#{name}",
+      name: "#{name}_sub_#{id}",
       resource_group: "#{resource_group}",
       virtual_network_name: "#{vpn_name}",
       address_prefix: "#{cidr}",
-      network_security_group_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/networkSecurityGroups/#{nsg_name}",
-      route_table_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/routeTables/#{route_table}"
+      network_security_group_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/networkSecurityGroups/#{nsg}",
+      route_table_id: "/subscriptions/#{Chef::Config[:knife][:azure_subscription_id]}/resourceGroups/#{resource_group}/providers/Microsoft.Network/routeTables/#{route}"
       )
+
+      puts ''
+      puts "========================================================="
+      puts "#{ui.color('SUBNET name is:', :magenta)}   :#{subnet.name}"
+      puts "#{ui.color('SUBNET id is:', :magenta)}     :#{subnet.id}"
+      puts "========================================================="
+
+      return subnet.name
     end
 
 #-----------------------Creation of NSG--------------------------------
@@ -71,6 +85,8 @@ module Engine
       puts "#{ui.color('NSG id is:', :magenta)}     :#{promise.id}"
 #      puts "id = #{promise.id}"
       puts "========================================================="
+
+      return promise.name
     end
 
 #----------Creation of Security Rule and adding to NSG	---------------
@@ -110,6 +126,8 @@ module Engine
       route_table = azure_network_client.route_tables.create_or_update("#{resource_group}", "#{name}", params)
       puts "#{ui.color('Route table creation is completed', :cyan)}"
       puts " "
+
+      return route_table.name
     end
 
 #--------------------Creating AvailabilitySet for Backend pool---------------

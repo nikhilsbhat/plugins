@@ -27,7 +27,14 @@ module Engine
 
       vpc.wait_until(max_attempts:10, delay:6) {|vpc| vpc.state == 'available' }
       puts "#{ui.color('VPC is created', :cyan)}"
+
       puts ''
+      puts "========================================================="
+      puts "#{ui.color('vpc-name', :magenta)}         : #{name}"
+      puts "#{ui.color('vpc-id', :magenta)}           : #{vpc_id}"
+      puts "========================================================="
+      puts ''
+
       return vpc_id
     end
 
@@ -44,7 +51,13 @@ module Engine
 
       subnet.wait_until(max_attempts:10, delay:6) {|subnet| subnet.state == 'available' }
       puts "#{ui.color('SUBNET is created', :cyan)}"
+
       puts ''
+      puts "========================================================="
+      puts "#{ui.color('subnet-name', :magenta)}      : #{name}"
+      puts "#{ui.color('subnet-ids', :magenta)}       : #{subnet_id}"
+      puts "========================================================="
+
       return subnet_id
     end
 
@@ -57,7 +70,13 @@ module Engine
       puts "."
       puts "."
       puts "#{ui.color('IGW creation is complete', :cyan)}"
+
       puts ''
+      puts "========================================================="
+      puts "#{ui.color('igw-name', :magenta)}         : #{subnet_name}"
+      puts "#{ui.color('igw-id', :magenta)}           : #{gate_way_id}"
+      puts "========================================================="
+
 
       return gate_way_id
     end
