@@ -298,7 +298,7 @@ module Engine
 
 #--------------------------------------server creation----------------------------------
 
-    def create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist)
+    def create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist,security_group)
 
       create = Chef::Knife::AzureServerCreate.new
 
@@ -319,6 +319,7 @@ module Engine
       create.config[:azure_loadbalancer_name]     = lb
       create.config[:azure_vm_nat_rule]           = nat_rule
       create.config[:azure_backend_pool]          = backend_pool
+      create.config[:azure_sec_group_name]        = security_group
 
       create.config[:environment]                 = chef_env
       value = create.run

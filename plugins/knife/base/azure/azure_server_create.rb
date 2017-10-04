@@ -190,6 +190,11 @@ class Chef
         :description => "Enter the backend pool in which the VM has to be created.",
         :default => 'null'
 
+      option :azure_sec_group_name,
+        :long => "--security-group SECURITY_GROUP_NAME",
+        :description => "Enter the backend pool in which the VM has to be created.",
+        :default => 'null'
+
       def run
         $stdout.sync = true
 
@@ -250,7 +255,8 @@ class Chef
           :azure_availability_set => locate_config_value(:azure_availability_set),
           :azure_loadbalancer_name => locate_config_value(:azure_loadbalancer_name),
           :azure_backend_pool => locate_config_value(:azure_backend_pool),
-          :azure_vm_nat_rule => locate_config_value(:azure_vm_nat_rule)
+          :azure_vm_nat_rule => locate_config_value(:azure_vm_nat_rule),
+          :azure_sec_group_name => locate_config_value(:azure_sec_group_name)
         }
 
         server_def[:tcp_endpoints] = locate_config_value(:tcp_endpoints) if locate_config_value(:tcp_endpoints)

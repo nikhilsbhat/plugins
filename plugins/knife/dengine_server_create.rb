@@ -135,7 +135,7 @@ module Engine
         storage_account      = "#{config[:storage_account]}"
         storage_account_type = "Standard_LRS"
         ssh_pub_key          = Chef::Config[:knife][:public_key]
-        puts "load balancer name: #{config[:lb_name]}"
+        security_group       = "PROD_nsg_0"
 
         if config[:lb_name] == "null"
           puts "#{ui.color('I am not part of any load balancer', :cyan)}"
@@ -146,7 +146,7 @@ module Engine
           backend_pool         = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-BACK-END-POOL")
         end
 
-        @client.create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist)
+        @client.create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist,security_group)
 
       elsif config[:cloud] == "google"
 
