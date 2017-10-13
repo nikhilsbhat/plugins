@@ -86,16 +86,18 @@ module Engine
 	  elsif (config[:cloud].nil?)
         Chef::Log.error "You have misspell the word or you might have not chose the cloud provider "
         exit
-	  end
+      end
 
       # validating data bag
-      data_bag_find = check_data_bag
+      data_bag_find = check_resource_existence("loadbalancers","#{config[:cloud]}-#{config[:type]}-#{config[:name]}")
       if data_bag_find == 0
         create_lb
       else
         puts "#{ui.color('loadbalancer already exists please check', :cyan)}"
       end
-      
+
+      return "#{config[:cloud]}-#{config[:type]}-#{config[:name]}"
+ 
     end
 
 #------------------------creation of lb------------------------------
@@ -103,14 +105,14 @@ module Engine
 
       if config[:cloud] == "aws"
 
-        subnet = get_subnet_id("#{config[:network]}")
-        vpc = get_vpc_id("#{config[:network]}")
-        sg_group = get_security_group("#{config[:network]}")
+        subnet = fetch_data("networks","#{config[:network]}","SUBNET-ID")
+        vpc = fetch_data("networks","#{config[:network]}","VPC-ID")
+        sg_group = fetch_data("networks","#{config[:network]}","SECURITY-ID")
         subnet_id1 = subnet.first
-        subnet_id2 = subnet.last
+        subnet_id2 = subnet[1]
         security_group = ["#{sg_group}"]        
 
-        if config[:type] == "application"
+        if (config[:type] == "application") || (config[:type] == "appli")
           create_aws_application_lb(subnet_id1,subnet_id2,security_group,vpc)
         elsif config[:type] == "network"
           create_aws_classic_lb(subnet_id1,subnet_id2,security_group,vpc)
@@ -123,7 +125,7 @@ module Engine
 
         resource_group = config[:resource_group]
         name = "#{config[:cloud]}-#{config[:type]}-#{config[:name]}"
-        if config[:type] == "application"
+        if (config[:type] == "application") || (config[:type] == "appli")
           puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
           exit
         elsif config[:type] == "network"
@@ -217,34 +219,6 @@ module Engine
       store_lb_data(elb_dns,"","")
     end
 
-#-----------------------check details of loadbalancer-------------------------
-    def check_data_bag
-      if Chef::DataBag.list.key?("loadbalancers")
-        puts ''
-        puts "#{ui.color('Found databag for this', :cyan)}"
-        puts "#{ui.color('Searching data for current application in to the data bag', :cyan)}"
-        puts ''
-        query = Chef::Search::Query.new
-        query_value = query.search(:loadbalancers, "id:#{config[:cloud]}-#{config[:type]}-#{config[:name]}")
-        if query_value[2] == 1
-          puts ""
-          puts "#{ui.color("The loadbalancer by name #{config[:cloud]}-#{config[:type]}-#{config[:name]} already exists please check", :cyan)}"
-          puts "#{ui.color("Hence we are quiting ", :cyan)}"
-          puts ""
-          exit
-        else
-          puts "#{ui.color("The data bag item #{config[:cloud]}-#{config[:type]}-#{config[:name]} is not present")}"
-          puts "#{ui.color("Hence we are Creating #{config[:cloud]}-#{config[:type]}-#{config[:name]}-loadbalancer ", :cyan)}"
-          return 0
-        end
-      else
-        puts ''
-        puts "#{ui.color("Didn't found databag for this", :cyan)}"
-        puts "#{ui.color("Hence we are Creating #{config[:cloud]}-#{config[:type]}-#{config[:name]}-loadbalancer ", :cyan)}"
-        return 0
-      end	  
-    end
-
 #-----------------------storing loadbalancers details---------------------
     def store_lb_data(elb_dns,elb_target_arn,elb_arn)
 
@@ -319,11 +293,9 @@ module Engine
         elsif config[:cloud] == "azure"
         end
 
-        puts "#{data}"
-
         databag_item = Chef::DataBagItem.new
         databag_item.data_bag("loadbalancers")
-        dengine_item.raw_data = data
+        databag_item.raw_data = data
         databag_item.save
       end
     end

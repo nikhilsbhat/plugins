@@ -62,7 +62,7 @@ module Engine
       puts "#{ui.color('SUBNET id is:', :magenta)}     :#{subnet.id}"
       puts "========================================================="
 
-      return subnet.name
+      return subnet.name,nsg
     end
 
 #-----------------------Creation of NSG--------------------------------
@@ -97,7 +97,7 @@ module Engine
       params.description = "AllowSSHProtocol"
       params.protocol = 'Tcp'
       params.source_port_range = '*'
-      params.destination_port_range = '22'
+      params.destination_port_range = '*'
       params.source_address_prefix = '*'
       params.destination_address_prefix = "#{sub_cidr}"
       params.access = 'Allow'
@@ -284,7 +284,7 @@ module Engine
       params.sku = sku
       params.kind = Models::Kind::Storage
       puts "Creating Storage Account #{time.hour}:#{time.min}:#{time.sec}"
-      promise = azure_storage_client.storage_accounts.create("#{resource_group}", "#{storage_name}", params)
+      promise = azure_storage_client.storage_accounts.create("#{resource_group}", "#{name}", params)
       t = Time.new
       puts "Created Storage Account #{t.hour}:#{t.min}:#{t.sec}"
     end
@@ -320,6 +320,7 @@ module Engine
       create.config[:azure_vm_nat_rule]           = nat_rule
       create.config[:azure_backend_pool]          = backend_pool
       create.config[:azure_sec_group_name]        = security_group
+      create.config[:azure_resource_group_name]   = resource_group
 
       create.config[:environment]                 = chef_env
       value = create.run

@@ -1,9 +1,12 @@
 require 'chef/knife'
 require "#{File.dirname(__FILE__)}/base/dengine_azure_interface"
 require "#{File.dirname(__FILE__)}/base/dengine_aws_interface"
+require "#{File.dirname(__FILE__)}/base/dengine_data_tresure"
 
 module Engine
   class DengineNetworkCreate < Chef::Knife
+
+    include DengineDataTresure
 
     banner 'knife dengine network create (options)'
 
@@ -34,7 +37,6 @@ module Engine
       :default => ['192.168.0.0/24'],
       :proc => Proc.new { |i| i.split(/,/) }
 
-    
 
     def run
 
@@ -60,39 +62,12 @@ module Engine
       end
 
       # validating data_bag
-      data_bag_find = check_data_bag
+      data_bag_find = check_resource_existence("networks","#{config[:cloud]}_#{config[:name]}")
         if data_bag_find == 0
           create_network(name)
         else
           puts "#{ui.color('Network already exists please check', :cyan)}"
         end
-    end
-
-    def check_data_bag
-      if Chef::DataBag.list.key?("networks")
-        puts ''
-        puts "#{ui.color('Found databag for this', :cyan)}"
-        puts "#{ui.color('Searching data for current application in to the data bag', :cyan)}"
-        puts ''
-        query = Chef::Search::Query.new
-        query_value = query.search(:networks, "id:#{config[:name]}")
-        if query_value[2] == 1
-          puts ""
-          puts "#{ui.color("The loadbalancer by name #{config[:name]} already exists please check", :cyan)}"
-          puts "#{ui.color("Hence we are quiting ", :cyan)}"
-          puts ""
-          exit
-        else
-          puts "#{ui.color("The data bag item #{config[:name]} is not present")}"
-          puts "#{ui.color("Hence we are Creating #{config[:name]}_network ", :cyan)}"
-          return 0
-        end
-      else
-        puts ''
-        puts "#{ui.color("Didn't found databag for this", :cyan)}"
-        puts "#{ui.color("Hence we are Creating #{config[:name]}_network ", :cyan)}"
-        return 0
-      end	  
     end
 
     def create_network(name)
@@ -106,9 +81,13 @@ module Engine
 #-------------------------creation of Subnet--------------------------
         puts "#{ui.color('creating subnet for the environment', :cyan)}"
         azure_sub = []
+        sub = []
+        azure_nsg = []
         m = config[:subnet_cidr_block].size-1
         config[:subnet_cidr_block].size.times do |s|
-          azure_sub[s] = @client.create_subnet(name,config[:subnet_cidr_block][m].to_s.tr("[]", '').tr('"', ''), azure_vpn, config[:resource_group],"#{s}")
+          sub[s] = @client.create_subnet(name,config[:subnet_cidr_block][m].to_s.tr("[]", '').tr('"', ''), azure_vpn, config[:resource_group],"#{s}")
+          azure_sub[s] = sub[s][0]
+          azure_nsg[s] = sub[s][1]
           m -=1;
         end
         ec2_vpc,ec2_subnet,ec2_security = ""
@@ -120,12 +99,22 @@ module Engine
         ec2_vpc = @client.create_vpc(name,config[:vpc_cidr_block].to_s.tr("[]", '').tr('"', ''))
 
 #------------  creation of Subnet----------------------------
+
         puts "#{ui.color('creating subnet for the environment', :cyan)}"
+        zones = @client.get_availability_zones
+        z = zones.size-1
         ec2_subnet = []
         n = config[:subnet_cidr_block].size-1
         config[:subnet_cidr_block].size.times do |s|
-          ec2_subnet[s] = @client.create_subnet(config[:subnet_cidr_block][n].to_s.tr("[]", '').tr('"', ''),ec2_vpc,"sub#{n}_name","us-west-2a")
+          if z == s
+            z == zones.size-1
+            zone = zones[z]
+          else
+            zone = zones[z]
+          end
+          ec2_subnet[s] = @client.create_subnet(config[:subnet_cidr_block][n].to_s.tr("[]", '').tr('"', ''),ec2_vpc,"sub#{n}_name",zone)
           n -=1;
+          z -=1;
         end
 
 #------------ creation of IGW--------------------------------
@@ -145,7 +134,7 @@ module Engine
 #------------ creation of Security Group----------------------
         puts "#{ui.color('creating Security group for the environment', :cyan)}"
         ec2_security = @client.create_security_group(name,ec2_vpc)
-        azure_sub,azure_vpn = ""
+        azure_sub,azure_vpn,azure_nsg = ""
 
       elsif config[:cloud] == "google"
         puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
@@ -154,10 +143,10 @@ module Engine
         puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
         exit
       end
-      store_network_data(name,ec2_vpc,ec2_subnet,ec2_security,azure_sub,azure_vpn)
+      store_network_data(name,ec2_vpc,ec2_subnet,ec2_security,azure_sub,azure_vpn,azure_nsg)
     end
 
-    def store_network_data(name,ec2_vpc,ec2_subnet,ec2_security,azure_sub,azure_vpn)
+    def store_network_data(name,ec2_vpc,ec2_subnet,ec2_security,azure_sub,azure_vpn,azure_nsg)
      if Chef::DataBag.list.key?("networks")
        puts ''
        puts "#{ui.color('Found databag for this', :cyan)}"
@@ -166,15 +155,16 @@ module Engine
 
        if config[:cloud] == "azure"
        data = {
-              'id' => "azure_#{name}",
-              'VPC-ID' => azure_vpn,
-              'SUBNET-ID' => azure_sub
+              'id'          => "azure_#{name}",
+              'VPC-ID'      => azure_vpn,
+              'SUBNET-ID'   => azure_sub,
+              'SECURITY-ID' => azure_nsg
               }
        elsif config[:cloud] == "aws"
        data = {
-              'id' => "aws_#{name}",
-              'VPC-ID' => "#{ec2_vpc}",
-              'SUBNET-ID' => ec2_subnet.reverse,
+              'id'          => "aws_#{name}",
+              'VPC-ID'      => "#{ec2_vpc}",
+              'SUBNET-ID'   => ec2_subnet.reverse,
               'SECURITY-ID' => "#{ec2_security}"
               }
        elsif config[:cloud] == "google"
@@ -198,15 +188,16 @@ module Engine
        users.create
        if config[:cloud] == "azure"
        data = {
-              'id' => "azure_#{name}",
-	          'VPC-ID' => azure_vpn,
-              'SUBNET-ID' => azure_sub
+              'id'          => "azure_#{name}",
+	      'VPC-ID'      => azure_vpn,
+              'SUBNET-ID'   => azure_sub,
+              'SECURITY-ID' => azure_nsg
               }
        elsif config[:cloud] == "aws"
        data = {
-              'id' => "aws_#{name}",
-              'VPC-ID' => "#{ec2_vpc}",
-              'SUBNET-ID' => ec2_subnet.reverse,
+              'id'          => "aws_#{name}",
+              'VPC-ID'      => "#{ec2_vpc}",
+              'SUBNET-ID'   => ec2_subnet.reverse,
               'SECURITY-ID' => "#{ec2_security}"
               }
        elsif config[:cloud] == "google"

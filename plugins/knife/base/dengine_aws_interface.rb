@@ -39,6 +39,17 @@ module Engine
     end
 
 #------------------------------creating subnet----------------------------------
+
+    def get_availability_zones
+      zone = aws_connection_client.describe_availability_zones({})
+      n = zone.availability_zones
+      zones = []
+      n.size.times do |a|
+        zones[a] = n[a].zone_name
+      end
+      return zones
+    end
+
     def create_subnet(cidr,vpc_id,name,zone)
       puts "#{ui.color('subnet creation has been started', :cyan)}"
       subnet = aws_connection_resource.create_subnet({vpc_id: vpc_id, cidr_block: cidr, availability_zone: zone})
@@ -215,7 +226,7 @@ module Engine
 
     def create_target_group(name,protocol,loadbalancerport,vpc)
       target = aws_connection_elb2.create_target_group({
-      name: "Target-#{name}", # required
+      name: "#{name}", # required
       protocol: protocol, # required, accepts HTTP, HTTPS
       port: loadbalancerport, # required
       vpc_id: vpc, # required
@@ -248,7 +259,7 @@ module Engine
         puts ""
         puts "#{ui.color('Fetching arn of target group to add instance', :cyan)}"
         begin
-          target_arn = get_target_arn(elb_name)
+          target_arn = fetch_data("loadbalancers",elb_name,"TARGET-GROUP-ARN")
 #          puts "#{target_arn}"
           arn = target_arn[0].to_s
 #          puts "#{arn}"

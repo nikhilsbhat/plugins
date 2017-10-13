@@ -415,9 +415,9 @@ module Azure::ARM
                   }
                 }
               ],
-#            "virtualMachine": {
-#                    "id": "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
-#                }
+              "networkSecurityGroup"=> ({
+                  "id"=> "[resourceId('Microsoft.Network/networkSecurityGroups/', variables('secgrpname'))]"
+              }if params[:azure_sec_group_name] != 'null')
             }
           },
           {

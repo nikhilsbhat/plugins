@@ -26,34 +26,6 @@ module Engine
       data_sg = data_value_sg.raw_data["#{resource}"]
 
     end
-  
-    def get_security_group(env)
- 
-      data_item_sg = Chef::DataBagItem.new
-      data_item_sg.data_bag("networks")
-      data_value_sg = Chef::DataBagItem.load("networks",env)
-      data_sg = data_value_sg.raw_data['SECURITY-ID']
-
-    end
-
-    def get_vpc_id(env)
-
-      data_item_sg = Chef::DataBagItem.new
-      data_item_sg.data_bag("networks")
-      data_value_sg = Chef::DataBagItem.load("networks",env)
-      data_sg = data_value_sg.raw_data['VPC-ID']
-
-    end
-
-    def get_subnet_id(env)
-
-      data_item_sub = Chef::DataBagItem.new
-      data_item_sub.data_bag("networks")
-      data_value_sub = Chef::DataBagItem.load("networks",env)
-      data_sub = data_value_sub.raw_data['SUBNET-ID']
-
-      return data_sub
-    end
 
     def get_nodes(name)
 
@@ -154,6 +126,36 @@ module Engine
       data_item_env.data_bag("loadbalancers")
       data_value_env = Chef::DataBagItem.load("loadbalancers",name)
       data_env = data_value_env.raw_data['TARGET-GROUP-ARN']
+    end
+
+#-------------This function is being called by both network and loadbalancers create-------
+#----------used to check the existence of resources present is appopriate cloud------------
+
+    def check_resource_existence(resource,resource_item)
+      if Chef::DataBag.list.key?(resource)
+        puts ''
+        puts "#{ui.color('Found databag for this', :cyan)}"
+        puts "#{ui.color('Searching data for current application in to the data bag', :cyan)}"
+        puts ''
+        query = Chef::Search::Query.new
+        query_value = query.search(:"#{resource}", "id:#{resource_item}")
+        if query_value[2] == 1
+          puts ""
+          puts "#{ui.color("The loadbalancer by name #{resource_item} already exists please check", :cyan)}"
+          puts "#{ui.color("Hence we are quiting ", :cyan)}"
+          puts ""
+          exit
+        else
+          puts "#{ui.color("The data bag item #{resource_item} is not present")}"
+          puts "#{ui.color("Hence we are Creating #{resource_item} ", :cyan)}"
+          return 0
+        end
+      else
+        puts ''
+        puts "#{ui.color("Didn't found databag for this", :cyan)}"
+        puts "#{ui.color("Hence we are Creating #{resource_item}_network ", :cyan)}"
+        return 0
+      end
     end
 
   end

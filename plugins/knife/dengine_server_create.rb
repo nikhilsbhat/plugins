@@ -104,7 +104,7 @@ module Engine
 
       flavor         = config[:flavor]
       chef_env       = config[:environment]
-      chef_role      = check_role("#{config[:role]}")
+#      chef_role      = check_role("#{config[:role]}")
       node_name      = set_node_name("#{config[:app]}","#{config[:role]}","#{config[:environment]}","#{config[:id]}")
       runlist        = set_runlist("#{config[:role]}")
       ssh_user       = "#{config[:machine_user]}"
@@ -117,7 +117,7 @@ module Engine
       if config[:cloud] == "aws"
 
         sg_group       = fetch_data("networks","#{config[:network]}","SECURITY-ID")
-        env            = get_subnet.first
+        env            = get_subnet.sample(1).to_s.tr("[]", '').tr('"', '')
         security_group = ["#{sg_group}"]
         image          = Chef::Config[:knife][:image]
         region         = Chef::Config[:knife][:region]
@@ -135,18 +135,20 @@ module Engine
         storage_account      = "#{config[:storage_account]}"
         storage_account_type = "Standard_LRS"
         ssh_pub_key          = Chef::Config[:knife][:public_key]
-        security_group       = "PROD_nsg_0"
+        security_group       = fetch_data("networks","#{config[:network]}","SECURITY-ID").first
 
         if config[:lb_name] == "null"
           puts "#{ui.color('I am not part of any load balancer', :cyan)}"
         else
           availability_set     = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-AVAILABILITY-SET")
           lb                   = config[:lb_name]
-          nat_rule             = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-NAT-RULES").first
+          nat_rule             = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-NAT-RULES").sample(1).to_s.tr("[]", '').tr('"', '')
           backend_pool         = fetch_data("loadbalancers","#{config[:lb_name]}","ALB-BACK-END-POOL")
+         puts "this is nat rule: #{nat_rule}"
         end
 
         @client.create_server(resource_group,node_name,region,storage_account,storage_account_type,env,subnet,flavor,image,ssh_user,ssh_pub_key,availability_set,lb,nat_rule,chef_env,gateway_key,backend_pool,runlist,security_group)
+        return node_name
 
       elsif config[:cloud] == "google"
 

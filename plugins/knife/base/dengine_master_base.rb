@@ -45,6 +45,13 @@ module Engine
 
       else
 
+        puts ''
+        puts "#{ui.color('Was not able to find databag for this', :cyan)}"
+        puts "#{ui.color('Hence creating databag', :cyan)}"
+        puts ''
+        users = Chef::DataBag.new
+        users.name("application")
+        users.create
         puts "#{ui.color('Creating application data bag item to store application details', :cyan)}"
         data = {
                  "id" => "#{app}",
@@ -79,87 +86,9 @@ module Engine
       out = search.run
       ip = Array.new
       out.each do |node|
-      ip = node["cloud_v2"]["public_ipv4"]
+      ip = node["cloud"]["public_ipv4"]
       end
       return ip
-
-    end
-
-    def save_server_details(app,env,servers)
-      $no_server = servers.size
-      value = Array.new
-      n1 = servers.size-1
-      servers.each {|i|
-                    ip = fetch_ipaddress(i);
-                    value[n1] = set_env_for(env,i,ip);
-                    n1 -=1
-      }
-      n = value.size
-      until n == 0 do
-      if n == 2
-        url  = "http://#{value[1]}:8080"
-        type = "tomcat"
-        name = servers[0]
-      elsif n == 1
-        url  = "#{value[0]}"
-        type = "mysql"
-        name = servers[1]
-      end
-        puts "The url is #{url}"
-        puts "The type is #{type}"
-        store_item(app,"#{name}","#{url}","#{env}_servers","#{type}")
-        sleep(10)
-        n -=1
-      end
-    end
-
-    def store_uat_prod_server_details(app,uat_servers,prod_servers)
-
-      store_item(app,"#{uat_servers.value[1]}","#{fetch_ipaddress("#{uat_servers.value[1]}")}","acceptance_servers","mysql")
-      sleep(10)
-      uat_ip = {}
-      n = uat_servers.value[0].size-1
-      uat_servers.value[0].each {|i|
-                                  puts "from uat_servers.each function and I got #{i}";
-                                  ip = fetch_ipaddress(i);
-                                  store_item(app,"#{i}","http://#{ip}:8080","acceptance_servers","tomcat#{n}");
-                                  n -=1;
-                                  sleep(10)
-      }
-    #-----------Saving Prod server details--------
-      store_item(app,"#{prod_servers.value[1]}","#{fetch_ipaddress("#{prod_servers.value[1]}")}","production_servers","mysql")
-      sleep(10)
-      uat_ip = {}
-      m = prod_servers.value[0].size-1
-      prod_servers.value[0].each {|i|
-                                  puts "from prod_servers.each function and I got #{i}";
-                                  ip = fetch_ipaddress(i);
-                                  store_item(app,"#{i}","http://#{ip}:8080","production_servers","tomcat#{m}");
-                                  m -=1;
-                                  sleep(10)
-      }
-
-    end
-
-    def set_env_for(env,i,ip)
-
-      if env == "development"
-        dev_ip = {}
-        dev_ip.store(i,ip)
-        return dev_ip.values.to_s.tr("[]", '').tr('"', '')
-      elsif env == "testing"
-        test_ip = {}
-        test_ip.store(i,ip)
-        return test_ip.values.to_s.tr("[]", '').tr('"', '')
-      elsif env == "acceptance"
-        uat_ip = {}
-        uat_ip.store(i,ip)
-        return uat_ip.values.to_s.tr("[]", '').tr('"', '')
-      elsif env == "production"
-        prod_ip = {}
-        prod_ip.store(i,ip)
-        return prod_ip.values.to_s.tr("[]", '').tr('"', '')
-      end
 
     end
 
@@ -202,6 +131,153 @@ module Engine
         puts ""
 
       end
+    end
+
+    def store_item(name,url,servers_category,servers_type)
+
+      puts puts "#{ui.color('+++++++++++++++++++++++++++++++++++++++', :magenta)}"
+      puts "#{name}"
+      puts "#{url}"
+      puts "#{servers_category}"
+      puts "#{servers_type}"
+      puts puts "#{ui.color('+++++++++++++++++++++++++++++++++++++++', :magenta)}"
+
+      if Chef::DataBag.list.key?("serverdetails")
+
+        puts ''
+        puts "#{ui.color('Found databag for this', :cyan)}"
+        puts "#{ui.color('Writing data in to the data bag item', :cyan)}"
+        puts ''
+        query = Chef::Search::Query.new
+        query_value = query.search(:serverdetails, "id:#{servers_category}")
+        if query_value.last == 0
+          create_data_bag_item(name,url,servers_category,servers_type)
+        else
+          update_data_bag_item(name,url,servers_category,servers_type)
+        end
+
+      else
+        puts ''
+        puts "#{ui.color('Was not able to find databag for this', :cyan)}"
+        puts "#{ui.color('Hence creating databag', :cyan)}"
+        puts ''
+        create_data_bag(name,url,servers_category,servers_type)
+      end
+
+    end
+
+    def create_data_bag(name,url,servers_cat,servers_type)
+
+      users = Chef::DataBag.new
+      users.name("serverdetails")
+      users.create
+      data = {
+              "id" => "#{servers_cat}",
+              "#{servers_type}" => {
+                "node_name"=> "#{name}",
+                "url" => "#{url}"
+              }
+             }
+      databag_item = Chef::DataBagItem.new
+      databag_item.data_bag("serverdetails")
+      puts "#{ui.color('Writing data in to the data bag item', :cyan)}"
+      databag_item.raw_data = data
+      databag_item.save
+      puts "#{ui.color('Data has been written in to databag successfully', :cyan)}"
+
+    end
+
+    def update_data_bag_item(name,url,servers_cat,servers_type)
+
+      data = {
+             "node_name": "#{name}",
+             "url": "#{url}"
+             }
+      serverdatabag = Chef::DataBagItem.load('serverdetails', servers_cat)
+      puts "#{ui.color('Writing data in to the data bag item', :cyan)}"
+      serverdatabag.raw_data["#{servers_type}"] = data
+      serverdatabag.save
+      puts "#{ui.color('Data has been written in to databag successfully', :cyan)}"
+
+    end
+
+
+    def create_data_bag_item(name,url,servers_cat,servers_type)
+
+      data = {
+              "id" => "#{servers_cat}",
+              "#{servers_type}" => {
+                "node_name"=> "#{name}",
+                "url" => "#{url}"
+               }
+             }
+      databag_item = Chef::DataBagItem.new
+      databag_item.data_bag("serverdetails")
+      puts "#{ui.color('Writing data in to the data bag item', :cyan)}"
+      databag_item.raw_data = data
+      databag_item.save
+      puts "#{ui.color('Data has been written in to databag successfully', :cyan)}"
+
+    end
+
+    def get_url(role,node_ip)
+
+      case role
+      when "sensu"
+        url = "http://#{node_ip}:3000"
+      when "jfrog"
+        url = "http://#{node_ip}:8081/artifactory"
+      when "jenkins"
+        url = "http://#{node_ip}:8080"
+      when "tomcat"
+        url = "http://#{node_ip}:8080"
+      when "splunk"
+        url = "http://#{node_ip}"
+      when "maven"
+        url = "#{node_ip}"
+      when "mysql"
+        url = "#{node_ip}"
+      when "redis"
+        url = "#{node_ip}"
+      when "elasticsearch"
+        url = "#{node_ip}"
+      when "web"
+        url = "http://#{node_ip}:80"
+      else
+        puts "#{ui.color('I have got nothing to send as a URL, please check this', :magenta)}"
+      end
+
+      return url
+    end
+
+    def get_server_type(role,id)
+
+      case role
+      when ("sensu" || "datadog" || "nagios")
+        type = "monitoring"
+      when ("jfrog" || "nexus")
+        type = "artifactory"
+      when ("jenkins" || "teamcity" || "bamboo")
+        type = "integration"
+      when "splunk"
+        type = "log-management"
+      when ("maven" || "gradle" || "phing" || "ant")
+        type = "build"
+      when "web"
+        type = "webserver-#{id}"
+      when "tomcat"
+        type = "webserver-#{id}"
+      when ("mysql" || "oracle" || "mongodb")
+        type = "database"
+      when ("redis")
+        type = "in-memory-database"
+      when ("elasticsearch" || "solar")
+        type = "search-engine"
+      else
+        puts "#{ui.color('I have got nothing to send as a URL, please check this', :magenta)}"
+      end
+
+      return type
     end
 
   end

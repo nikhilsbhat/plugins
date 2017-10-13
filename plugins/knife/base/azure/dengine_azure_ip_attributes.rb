@@ -1,5 +1,5 @@
 require 'chef/knife'
-require "/root/.chef/plugins/knife/base/dengine_client_base"
+require "/var/lib/jenkins/.chef/plugins/knife/base/dengine_client_base"
 
 module Engine
     module DengineAzureIpAttributes
