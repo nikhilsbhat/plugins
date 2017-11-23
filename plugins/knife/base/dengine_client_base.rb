@@ -85,7 +85,7 @@ module Engine
       def aws_connection_client
         @aws_connection_client ||= begin
           aws_connection_client = Aws::EC2::Client.new(
-                 region: 'us-west-2',
+                 region: Chef::Config[:knife][:region],
                  credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
         end
       end
@@ -93,14 +93,14 @@ module Engine
       def aws_connection_resource
         aws_connection_resource ||= begin
           Aws.config.update({credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key])})
-        aws_connection_resource = Aws::EC2::Resource.new(region: 'us-west-2')
+        aws_connection_resource = Aws::EC2::Resource.new(region: 'Chef::Config[:knife][:region]')
         end
       end
 
       def aws_connection_elb
         @aws_connection_elb ||= begin
           aws_connection_elb = Aws::ElasticLoadBalancing::Client.new(
-                 region: 'us-west-2',
+                 region: Chef::Config[:knife][:region],
                  credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
             end
       end
@@ -108,7 +108,7 @@ module Engine
       def aws_connection_elb2
         @aws_connection_elb2 ||= begin
           aws_connection_elb2 = Aws::ElasticLoadBalancingV2::Client.new(
-                 region: 'us-west-2',
+                 region: Chef::Config[:knife][:region],
                  credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
           end
       end
@@ -116,7 +116,15 @@ module Engine
       def aws_autoscaling_client
         @aws_autoscaling_client ||= begin
           aws_autoscaling_client = Aws::AutoScaling::Client.new(
-                 region: 'us-west-2',
+                 region: Chef::Config[:knife][:region],
+                 credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
+        end
+      end
+
+      def aws_iam_client
+        @aws_iam_client ||= begin
+          aws_iam_client = Aws::AutoScaling::Client.new(
+                 region: Chef::Config[:knife][:region],
                  credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
         end
       end
