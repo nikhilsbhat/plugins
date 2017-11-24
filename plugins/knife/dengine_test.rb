@@ -13,8 +13,8 @@ module Engine
       end
 #      g = Git.clone('git@bitbucket.org:devopsiac/plugins.git', 'plugins2.0', :path => '/tmp/test_git')
       g = Git.clone('git@bitbucket.org:devopsiac/plugins.git', 'plugins2.0')
-      g.pull
 #      g = Git.open("/root/.chef", :log => Logger.new(STDOUT))
+      g.pull
 #      puts "#{g.describe('HEAD', {:all => true, :tags => true})}"
 #      g.branches.local
     end
