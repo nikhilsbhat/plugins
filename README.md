@@ -7,13 +7,6 @@ It has few more aspects other than creating cloud resources:
 	* promotion of IAC from one environment to another `knife dengine env promote`.
 	...and many more
 
-read this document to understand this plugun better.
-
-It helps in creating loadbalancer in AWS, storing its value in chef.
-It helps in creating custom images using Packer, for this I have used [packer-config](https://github.com/ianchesal/packer-config)
-this packer blend plugin help in creating custom image.
-
-
 ## Download
 
     Since a custom gem is not built for this yet, if one has to use this plugins
