@@ -1,3 +1,5 @@
+# Note
+This project is not maintained anymore and is archived. This is because a dedicated new [repo](https://github.com/nikhilsbhat/knife-dengine) has been created for this. Have a look at it
 # knife-dengine
 
 A custom knife plugin which lets you create resources in a cloud agostic manner.
