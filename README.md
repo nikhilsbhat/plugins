@@ -192,3 +192,5 @@ knife[:gce_image] = "ubuntu-14-04"
 #knife[:gateway_key] = "/var/lib/jenkins/chef-repo/.chef/google_key.ppk"
 knife[:public_key]  = "/var/lib/jenkins/chef-repo/.chef/google_key"
 ```
+
+**Note: the above values in knife is just to give more insights and holds dummy data**
