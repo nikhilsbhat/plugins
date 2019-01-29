@@ -66,6 +66,60 @@ module Engine
       end
     end
 
+    def create_application_data_bag_for_environment(app)
+
+      if Chef::DataBag.list.key?("application")
+        puts ''
+        puts "#{ui.color('Found databag for this', :cyan)}"
+        puts "#{ui.color('Searching data for current application in to the data bag', :cyan)}"
+        puts ''
+        query = Chef::Search::Query.new
+        query_value = query.search(:application, "id:#{app}")
+        if query_value[2] == 1
+
+          puts ""
+          puts "#{ui.color("The application by name #{app} already exists ", :cyan)}"
+          puts "#{ui.color("Hence we are proceeding ", :cyan)}"
+          puts ""
+
+        else
+
+          puts "#{ui.color('Creating application data bag item to store application details', :cyan)}"
+          data = {
+                  "id" => "#{app}",
+                 }
+          databag_item = Chef::DataBagItem.new
+          databag_item.data_bag("application")
+          puts "#{ui.color('Writing data in to the application data bag item', :cyan)}"
+          databag_item.raw_data = data
+          databag_item.save
+          puts "#{ui.color('Data has been written in to application databag successfully', :cyan)}"
+
+        end
+
+      else
+
+        puts ''
+        puts "#{ui.color('Was not able to find databag for this', :cyan)}"
+        puts "#{ui.color('Hence creating databag', :cyan)}"
+        puts ''
+        users = Chef::DataBag.new
+        users.name("application")
+        users.create
+        puts "#{ui.color('Creating application data bag item to store application details', :cyan)}"
+        data = {
+                 "id" => "#{app}",
+               }
+        databag_item = Chef::DataBagItem.new
+        databag_item.data_bag("application")
+        puts "#{ui.color('Writing data in to the application data bag item', :cyan)}"
+        databag_item.raw_data = data
+        databag_item.save
+        puts "#{ui.color('Data has been written in to application databag successfully', :cyan)}"
+
+      end
+    end
+
     def fetch_instance_id(node)
 
       search = Chef::Knife::Search.new

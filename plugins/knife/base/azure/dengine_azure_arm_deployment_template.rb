@@ -485,6 +485,38 @@ module Azure::ARM
         ]
       }
 
+      if params[:azure_image_os_type] == "windows"
+        set_val = {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": extName,
+            "apiVersion": "2017-03-30",
+            "location": "CentralIndia",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.7",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "[concat('https', '://', variables('storageAccountName'), '.blob.core.windows.net', '/windows/enable_winrm.ps1')]"
+                    ],
+                    "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File enable_winrm.ps1"
+                },
+                "protectedSettings": {}
+            }
+          }
+
+        length = template['resources'].length.to_i - 1
+        for i in 0..length do
+          if template['resources'][i]['type'] == "Microsoft.Compute/virtualMachines/extensions"
+          end
+        end
+        template['resources'].insert(length, set_val)
+      end
+
       if params[:tcp_endpoints]
         sec_grp_json = tcp_ports(params[:tcp_endpoints], params[:azure_vm_name])
         template['resources'].insert(1,sec_grp_json)

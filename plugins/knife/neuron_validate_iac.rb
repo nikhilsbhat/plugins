@@ -1,9 +1,15 @@
 require 'chef/knife'
+require 'json'
 
 module Engine
-  class DengineSyntaxCheck < Chef::Knife
+  class NeuronValidateIac < Chef::Knife
 
-    banner "knife dengine syntax check (options)"
+    deps do
+      require 'chef/knife/role_from_file'
+      Chef::Knife::RoleFromFile.load_deps
+    end
+
+    banner "knife neuron validate iac (options)"
 
     option :environments,
       :short => '-e',
@@ -21,10 +27,15 @@ module Engine
       :boolean => true,
       :description => "Test only node syntax"
     option :databags,
-      :short => '-D',
+      :short => '-d',
       :long => '--databags',
       :boolean => true,
       :description => "Test only databag syntax"
+    option :plugins,
+      :short => '-p',
+      :long => '--plugins',
+      :boolean => true,
+      :description => "Test only plugins syntax"
     option :cookbooks,
       :short => '-c',
       :long => '--cookbooks',
@@ -37,37 +48,35 @@ module Engine
       :description => "Test syntax of all roles, environments, nodes, databags and cookbooks"
 
     deps do
-      require 'yajl'
       require 'pathname'
       require 'chef/knife/cookbook_test'
       Chef::Knife::CookbookTest.load_deps
       require 'foodcritic'
       require 'foodcritic/command_line'
-#      FoodCritic::CommandLine.load_deps
+
     end
 
     def run
+
       if config[:roles]
-        test_object("/root/chef-repo/roles/*", "role")
+        role = test_object("/var/lib/jenkins/jobs/validate_iac/workspace/roles/*", "role")
       elsif config[:environments]
-        test_object("/root/chef-repo/environments/*", "environment")
+        environments = test_object("/var/lib/jenkins/jobs/validate_iac/workspace/environments/*", "environment")
       elsif config[:nodes]
-        test_object("/root/chef-repo/nodes/*", "node")
+        nodes = test_object("/var/lib/jenkins/jobs/validate_iac/workspace/nodes/*", "node")
       elsif config[:databags]
-        test_databag("/root/chef-repo/data_bags/*", "data bag")
+        test_databag("/var/lib/jenkins/jobs/validate_iac/workspace/data_bags/*", "data bag")
       elsif config[:cookbooks]
-        test_cookbooks()
+        cookbook = test_cookbooks()
+        foodcritic   = foodcritic()
+      elsif config[:plugins]
+        plugins = test_plugins("/var/lib/jenkins/jobs/validate_iac/workspace/cookbooks/dashboard/files/default/plugins/**/*", "plugins")
       elsif config[:all]
-        test_object("/root/chef-repo/roles/*", "role")
-        test_object("/root/chef-repo/environments/*", "environment")
-        test_object("/root/chef-repo/nodes/*", "node")
-        test_databag("/root/chef-repo/data_bags/*", "data bag")
-        test_plugins("/root/.chef/**/*", "plugins")
-#        test_plugins("/root/chef-repo/*", "plugins")
-        test_cookbooks("/root/chef-repo/cookbooks")
-        foodcritic()
-      else
-        ui.msg("Usage: knife dengine syntax check --help")
+        # The environment is freezed to _defalut as of now it can be changed in future if in need.
+        iac_state = test_all
+      end
+      if iac_state.each {|i| i == 'success'}
+        ui.msg("Testing infra is successful")
       end
     end
 
@@ -103,6 +112,23 @@ module Engine
       end
     end
 
+    # Test all the resources
+    def test_all
+      role         = test_object("/var/lib/jenkins/jobs/validate_iac/workspace/roles/*", "role")
+      environments = test_object("/var/lib/jenkins/jobs/validate_iac/workspace/environments/*", "environment")
+      data_bag     = test_databag("/var/lib/jenkins/jobs/validate_iac/workspace/data_bags/*", "data bag")
+      plugins      = test_plugins("/var/lib/jenkins/jobs/validate_iac/workspace/cookbooks/dashboard/files/default/plugins/**/*", "plugins")
+      foodcritic   = foodcritic()
+      return role,environments,data_bag,plugins,foodcritic
+    end
+    # I will validatethe json and send my response
+    def valid_json?(json)
+      JSON.parse(json)
+      return "success"
+      rescue JSON::ParserError => e
+      return "failure"
+    end
+
     # Common method to test file syntax
     def check_syntax(dirpath, dir = nil, type)
       files = Dir.glob("#{dirpath}").select { |f| File.file?(f) }
@@ -110,38 +136,43 @@ module Engine
         fname = Pathname.new(file).basename
         if ("#{fname}".end_with?('.json'))
           ui.msg("Testing file #{file}")
-          json = File.new(file, 'r')
-          parser = Yajl::Parser.new
-          hash = parser.parse(json)
+          json = File.read(file)
+          @result = valid_json?(json)
+          case @result
+          when "failure"
+            raise JsonSyntaxError.new("JSON Syntax Is not Happy", "ERROR:")
+          else
+          end
         elsif("#{fname}".end_with?('.rb'))
           ui.msg("Testing file #{file}")
           cmd = Mixlib::ShellOut.new("ruby -c #{file}")
           cmd.run_command
-#          puts cmd.stdout
           @error_ruby = cmd.stderr
           if (!@error_ruby.empty?) && ("#{fname}".end_with?('.rb'))
             raise RubySyntaxError.new("Ruby Syntax Is not Happy", "ERROR:")
           end
         end
-      end 
-      if !@error_ruby.nil?
+      end
+      if !@error_ruby.nil? && @result == 'success'
         puts "."
-         puts "Kudos syntaxes of Ruby files for #{type} are great....We are good to go ahead"
+        puts "#{ui.color('Kudos syntaxes of of both JSON Ruby files for are great....We are good to go ahead', :cyan)}"
+        puts "Kudos syntaxes of Ruby files for #{type} are great....We are good to go ahead"
         puts "."
+        return 'success'
       end
     end
 
     def foodcritic()
-      ["/root/chef-repo/roles","/root/chef-repo/cookbooks","/root/chef-repo/environments"].each do |path|
+      ["/var/lib/jenkins/jobs/validate_iac/workspace/roles/","/var/lib/jenkins/jobs/validate_iac/workspace/cookbooks/","/var/lib/jenkins/jobs/validate_iac/workspace/environments/"].each do |path|
+        puts "."
+        puts "#{ui.color('I am checking the standards for ', :cyan)}#{path}"
         puts ""
-        puts "I am checking the standards for #{path}"
-        puts ""
-        [01,02,04,05,06,07,10,13,16,19,24,25,26,27,28,29,31,32,33,34,38,39,40,41,42,43,44,45,48,49,50,51,61,66,74,77,82,86,88,89,92,94,95,98].each do |rule_no|
+        [01,02,04,05,06,07,10,13,16,19,24,25,26,27,28,29,31,32,33,34,38,39,40,41,42,43,44,45,48,49,50,51,66,74,77,82,86,88,89,92,94,95,98].each do |rule_no|
           foodcritic_check(rule_no.to_s,path)
         end
       end
     end
-	
+
     def foodcritic_check(rule_no,path)
       if path.include? "roles"
         type = "-R"
@@ -150,7 +181,7 @@ module Engine
       elsif path.include? "environments"
         type = "-E"
       else
-        puts "Could not get valid type"
+        puts "#{ui.color('Could not get valid type', :magenta)}"
       end
       cmd = Mixlib::ShellOut.new("foodcritic #{type} #{path}")
       cmd.run_command
@@ -158,8 +189,25 @@ module Engine
       @error_food = cmd.stderr
       if !@error_food.empty?
         raise FoodCriticError.new("FoodCritic Is not Happy", "ERROR:")
-          puts @error_food
+        puts @error_food
+        return "notsuccess"
+      else
+        return "success"
       end
+    end
+
+    def get_nodes(name,env)
+      node_query = Chef::Search::Query.new
+      node_found = node_query.search('node', "role:#{name} AND chef_environment:#{env}").first
+
+      return node_found
+    end
+
+    def time_difference_in_hms(raw_time)
+      now = Time.now.to_i
+      difference = now - raw_time.to_i
+      minutes = (difference / 60).to_i
+      return minutes
     end
 
   end
@@ -181,5 +229,14 @@ module Engine
       super(msg)
     end
   end
+
+   class JsonSyntaxError < StandardError
+    attr_reader :error
+
+    def initialize(msg="JSON Syntax Is not Happy", error="ERROR:")
+      @error = error
+      super(msg)
+    end
+   end
 
 end

@@ -96,7 +96,16 @@ module Engine
         exit
       end
 
-      server_create
+      name_name = server_create
+
+      if config[:role] == 'tomcat'
+        node_name = set_node_name(config[:app],config[:role],config[:environment],config[:id])
+        chek_node_existence_and_set(node_name)
+      else
+        puts "#{ui.color('Since I am not a part of web servers my attributes are not set to default values for web', :cyan)}"
+      end
+
+      return name_name
  
     end
 
@@ -154,7 +163,7 @@ module Engine
 
         env            = ""
         boot_disk      = config[:boot_disk_size]
-        network        = "#{config[:network]}"
+        network        = "default"
         image          = Chef::Config[:knife][:gce_image]
         zone           = Chef::Config[:knife][:gce_zone]
 

@@ -93,7 +93,7 @@ module Engine
       def aws_connection_resource
         aws_connection_resource ||= begin
           Aws.config.update({credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key])})
-        aws_connection_resource = Aws::EC2::Resource.new(region: 'Chef::Config[:knife][:region]')
+        aws_connection_resource = Aws::EC2::Resource.new(region: Chef::Config[:knife][:region])
         end
       end
 
@@ -121,9 +121,9 @@ module Engine
         end
       end
 
-      def aws_iam_client
-        @aws_iam_client ||= begin
-          aws_iam_client = Aws::AutoScaling::Client.new(
+      def aws_pricing_list
+        @aws_pricing_list ||= begin
+          aws_pricing_list = Aws::Pricing::Client.new(
                  region: Chef::Config[:knife][:region],
                  credentials: Aws::Credentials.new(Chef::Config[:knife][:aws_access_key_id], Chef::Config[:knife][:aws_secret_access_key]))
         end

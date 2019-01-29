@@ -324,6 +324,7 @@ module Engine
       create.config[:associate_public_ip] = true
       create.config[:region]              = region
       create.config[:environment]         = chef_env
+      create.config[:bootstrap_version]   = '12.21.31'
 
       value = create.run
 
@@ -354,8 +355,6 @@ module Engine
       puts ''
 
     end
-
-#---------------------creation of the IAM resources-------------------
 
   end
 end

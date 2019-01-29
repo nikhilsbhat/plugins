@@ -2,7 +2,7 @@ require 'chef/knife'
 require "#{File.dirname(__FILE__)}/base/dengine_master_base"
 
 module Engine
-  class DengineMasterCreate < Chef::Knife
+  class DengineTestMasterCreate < Chef::Knife
 
     include DengineMasterBase
 
@@ -18,7 +18,7 @@ module Engine
       Engine::DengineAddInstanceLoadbalancer.load_deps
     end
 
-    banner 'knife dengine master create (options)'
+    banner 'knife dengine test master create (options)'
 
     option :cloud,
         :long => '--cloud CLOUD_PROVIDER_NAME',
@@ -229,47 +229,15 @@ module Engine
       end
       sleep(5)
 
-#-----------------------creation-of-load_balancers-prod----------------------
- # creating load_balancers
-      if @value_prod > 1
-        if config[:cloud] == "aws"
-        @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","")
-        elsif config[:cloud] == "azure"
-        @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","#{config[:resource_group]}")
-        end
-      else
-        puts "#{ui.color('Not creating load balancer for Production as it was not opted', :cyan)}"
-      end
-
       puts ""
       puts "#{ui.color('The stack creation is in progress', :cyan)}"
       puts ""
 
 #---------------------------management-servers-------------------------------
 
-      mngt_servers = Thread.new{create_mngt_servers(@app,@mngt_network,@mngt_env,@mngt_flavor)}
-
-#------------------------------dev-servers-----------------------------------
-
-#      dev_servers = Thread.new{create_dev_server(@app,@uat_network,@dev_env)}
-
-#------------------------------test-servers-----------------------------------
-
-#      test_servers = Thread.new{create_test_server(@app,@uat_network,@test_env)}
-
-#------------------------------uat-servers-----------------------------------
-
       uat_servers = Thread.new{create_uat_server(@app,@value_uat,@uat_network,@uat_env)}
 
-#----------------------------prod-servers------------------------------------
-
-      prod_servers = Thread.new{create_prod_server(@app,@value_prod,@prod_network,@prod_env)}
-
-#      dev_servers.join
-#      test_servers.join
       uat_servers.join
-      prod_servers.join
-      mngt_servers.join
 
       puts ""
       puts "#{ui.color('The stack creation is complete', :cyan)}"
@@ -298,10 +266,7 @@ module Engine
       if (config[:cloud] == "aws") && (%w[web tomcat].include?(role))
         instance_id = fetch_instance_id(name)
         if env == "production"
-          puts "#{ui.color('..|....|....|....|....|....|....|....|....|....|..', :cyan)}"
-		  puts "The Load balancer name is : #{@elbp}"
           add_instance(@elbp,instance_id)
-          puts "#{ui.color('..|....|....|....|....|....|....|....|....|....|..', :cyan)}"
         elsif env == "acceptance"
           add_instance(@elbu,instance_id)
         else
@@ -365,16 +330,16 @@ module Engine
       #---the "" indicates that no load balancer name is being passed----
       id = 0
       moni_node  = Thread.new{create_machine(app,mngt_network,mngt_env,config[:monitoring],mngt_flavor,id,"null")}
-      build_node = Thread.new{create_machine(app,mngt_network,mngt_env,config[:build],mngt_flavor,id,"null")}
-      arti_node  = Thread.new{create_machine(app,mngt_network,mngt_env,config[:artifact],mngt_flavor,id,"null")}
-      ci_node    = Thread.new{create_machine(app,mngt_network,mngt_env,config[:ci],mngt_flavor,id,"null")}
-      logm_node  = Thread.new{create_machine(app,mngt_network,mngt_env,config[:log_management],mngt_flavor,id,"null")}
+#      build_node = Thread.new{create_machine(app,mngt_network,mngt_env,config[:build],mngt_flavor,id,"")}
+#      arti_node  = Thread.new{create_machine(app,mngt_network,mngt_env,config[:artifact],mngt_flavor,id,"")}
+#      ci_node    = Thread.new{create_machine(app,mngt_network,mngt_env,config[:ci],mngt_flavor,id,"")}
+#      logm_node  = Thread.new{create_machine(app,mngt_network,mngt_env,config[:log_management],mngt_flavor,id,"")}
 
       moni_node.join
-      build_node.join
-      arti_node.join
-      ci_node.join
-      logm_node.join
+#      build_node.join
+#      arti_node.join
+#      ci_node.join
+#     logm_node.join
 
     end
 
@@ -382,16 +347,14 @@ module Engine
      # provisioning Database machine for uat environment
       id = 0
       udb = Thread.new{create_machine(app,uat_network,uat_env,config[:database],config[:uat_db_tr],id,"null")}
-      red = Thread.new{create_machine(app,uat_network,uat_env,config[:in_memory_db],config[:uat_in_db_tr],id,"null")}
-      eal = Thread.new{create_machine(app,uat_network,uat_env,config[:search_engine],config[:uat_search_tr],id,"null")}
 
       #------------mechanism to create instance and add it into load balancer UAT--------
       if @value_uat > 1
 
+        puts "the @elbu value is: #{@elbu}"
         uwb = []
         @value_uat.times do |n|
-        uwb = Thread.new{create_machine(app,uat_network,uat_env,config[:webserver],config[:uat_wb_tr],"#{n}",@elbu)}
-        uwb.join
+        uwb[n] = Thread.new{create_machine(app,uat_network,uat_env,config[:webserver],config[:uat_wb_tr],"#{n}",@elbu)}
         end
 
       else
@@ -401,39 +364,41 @@ module Engine
 
       end
 
+      red = Thread.new{create_machine(app,uat_network,uat_env,config[:in_memory_db],config[:uat_in_db_tr],id,"null")}
+      eal = Thread.new{create_machine(app,uat_network,uat_env,config[:search_engine],config[:uat_search_tr],id,"null")}
       udb.join
       red.join
       eal.join
-#      uwb.each {|i| i.join}
+      uwb.each {|i| i.join}
 
     end
 
     def create_prod_server(app,value_prod,prod_network,prod_env)
     # provisioning Database machine for production environment
       id = 0
-      pdb = Thread.new{create_machine(app,prod_network,prod_env,config[:database],config[:prod_db_tr],id,"null")}
-      red = Thread.new{create_machine(app,prod_network,prod_env,config[:in_memory_db],config[:prod_in_db_tr],id,"null")}
-      eal = Thread.new{create_machine(app,prod_network,prod_env,config[:search_engine],config[:prod_search_tr],id,"null")}
+      pdb = Thread.new{create_machine(app,prod_network,prod_env,config[:database],config[:prod_db_tr],id,"")}
 
+      #------------mechanism to create instance for web and add it into load balancer PROD--------
       if @value_prod > 1
 
         pwb = []
         @value_prod.times do |n|
         pwb = Thread.new{create_machine(app,prod_network,prod_env,config[:webserver],config[:prod_wb_tr],"#{n}",@elbp)}
-        pwb.join
         end
 
       else
 
-      pwb = Thread.new{create_machine(app,prod_network,prod_env,config[:webserver],config[:prod_wb_tr],id,"null")}
+      pwb = Thread.new{create_machine(app,prod_network,prod_env,config[:webserver],config[:prod_wb_tr],id,"")}
       pwb.join
 
       end
 
+      red = Thread.new{create_machine(app,prod_network,prod_env,config[:in_memory_db],config[:prod_in_db_tr],id,"")}
+      eal = Thread.new{create_machine(app,prod_network,prod_env,config[:search_engine],config[:prod_search_tr],id,"")}
       pdb.join
       red.join
       eal.join
-#      pwb.each {|i| i.join}
+      pwb.each {|i| i.join}
 
     end
 
@@ -441,10 +406,10 @@ module Engine
 
       id = 0
       # provisioning Database machine for development environment
-      ddb = Thread.new{create_machine(app,uat_network,uat_env,config[:database],config[:dev_db_tr],id,"null")}
+      ddb = Thread.new{create_machine(app,uat_network,uat_env,config[:database],config[:dev_db_tr],id,"")}
 
       # mechanism to create instance for web in development environment
-      dwb = Thread.new{create_machine(app,uat_network,uat_env,config[:webserver],config[:dev_wb_tr],id,"null")}
+      dwb = Thread.new{create_machine(app,uat_network,uat_env,config[:webserver],config[:dev_wb_tr],id,"")}
 
       ddb.join
       dwb.join
@@ -455,10 +420,10 @@ module Engine
 
       id = 0
       # provisioning Database machine for testing environment
-      tdb = Thread.new{create_machine(app,uat_network,uat_env,config[:database],config[:tst_db_tr],id,"null")}
+      tdb = Thread.new{create_machine(app,uat_network,uat_env,config[:database],config[:tst_db_tr],id,"")}
 
       # mechanism to create instance for web in testing environment
-      twb = Thread.new{create_machine(app,uat_network,uat_env,config[:webserver],config[:tst_wb_tr],id,"null")}
+      twb = Thread.new{create_machine(app,uat_network,uat_env,config[:webserver],config[:tst_wb_tr],id,"")}
 
       tdb.join
       twb.join

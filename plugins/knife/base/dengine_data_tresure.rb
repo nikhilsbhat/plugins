@@ -35,6 +35,8 @@ module Engine
       return node_found
     end
 
+#---The following functions will help in setting node attribute for deployment---------------
+
     def search_databag_item
       query = Chef::Search::Query.new
       query_value = query.search(:job_id, "id:job-id")
@@ -106,6 +108,7 @@ module Engine
     def set_node_for_first(node_name)
       puts "#{ui.color('====================================', :cyan)}"
       puts "#{ui.color('I am getting created for the first time, hence I am assigned with default values', :cyan)}"
+      puts "the node name: #{node_name}"
       node_found = get_nodes(node_name)
       node_found.each do |node|
         puts "#{ui.color('Seting attributes for node started', :cyan)}"

@@ -1,0 +1,299 @@
+require 'chef/knife'
+require "#{File.dirname(__FILE__)}/base/dengine_master_base"
+
+module Engine
+  class DengineEnvironmentCreate < Chef::Knife
+
+    include DengineMasterBase
+
+    deps do
+      require 'chef/search/query'
+      require "#{File.dirname(__FILE__)}/dengine_master_create"
+      Engine::DengineMasterCreate.load_deps
+      require "#{File.dirname(__FILE__)}/dengine_load_balancer_create"
+      Engine::DengineLoadBalancerCreate.load_deps
+      require "#{File.dirname(__FILE__)}/dengine_add_instance_loadbalancer"
+      Engine::DengineAddInstanceLoadbalancer.load_deps
+      require "#{File.dirname(__FILE__)}/dengine_server_create"
+      Engine::DengineServerCreate.load_deps
+      require "#{File.dirname(__FILE__)}/dengine_add_instance_loadbalancer"
+      Engine::DengineAddInstanceLoadbalancer.load_deps
+    end
+
+    banner 'knife dengine master create (options)'
+
+    option :cloud,
+        :long => '--cloud CLOUD_PROVIDER_NAME',
+        :description => "The name of the cloud provider for ex: aws, azure, google, openstack etc"
+
+    option :resource_group,
+        :long => '--resource-group-name RESOURCE_GROUP_NAME',
+        :description => "The name of Resource group in which the network that has to be created",
+        :default => "Dengine"
+
+    option :app,
+        :long => '--app APP_NAME',
+        :description => "The name of the application for which the environment is being setup",
+        :default => "java"
+
+    option :build,
+        :short => '-b BUILD_TOOL',
+        :long => '--build BUILD_TOOL',
+        :description => "The build tool required for the environment like MAVEN, GRADDLE etc.",
+        :default => "maven"
+
+    option :artifact,
+        :short => '-a ARTIFACT_TOOL',
+        :long => '--artifact ARTIFACT_TOOL',
+        :description => "The artifactory tool required for the environment like JFROG, NEXUS etc.",
+        :default => "jfrog"
+
+    option :ci,
+        :short => '-i CI_SERVER',
+        :long => '--ci CI_SERVER',
+        :description => "The CI tool required for the environment like JENKINS, BAMBOO, TEAMCITY etc.",
+        :default => "jenkins"
+
+    option :monitoring,
+        :short => '-m MONITORING_SERVER',
+        :long => '--monitoring MONITORING_SERVER',
+        :description => "The monitoring tool which helps to moniter the machines in the environment, for example SENSU, DATADOG etc.",
+        :default => "sensu"
+
+    option :log_management,
+        :short => '-l LOG_MANAGEMENT_SERVER',
+        :long => '--log_management LOG_MANAGEMENT_SERVER',
+        :description => "The tool required to manage the log of the servers in the environment. For example SPLUNK etc.",
+        :default => "splunk"
+
+    option :database,
+        :short => '-d DATABASE',
+        :long => '--database DATABASE',
+        :description => "The database tool required for the environment.",
+        :default => "mysql"
+
+    option :webserver,
+        :short => '-w WEBSERVER',
+        :long => '--webserver WEBSERVER',
+        :description => "The webserver required for the environment for example TOMCAT, APACHE2 etc.",
+        :default => "tomcat"
+
+    option :in_memory_db,
+        :long => '--in_memory_db IN_MEMORY_DATABASE',
+        :description => "The in memory database tool required for the environment, like redis.",
+        :default => "redis"
+
+    option :search_engine,
+        :long => '--search_engine SEARCH_ENGINE',
+        :description => "The search engine tool required for the environment, like elasticsearch or solar.",
+        :default => "elasticsearch"
+
+    option :mngt_server_flavour,
+        :long => '--mngt-server-flavour MANAGEMENT_SERVER_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :dev_db_tr,
+        :long => '--dev_db_tr DEV_DB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :dev_wb_tr,
+        :long => '--dev_wb_tr UAT_WB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :tst_db_tr,
+        :long => '--tst_db_tr DEV_DB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :tst_wb_tr,
+        :long => '--tst_wb_tr UAT_WB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :uat_in_db_tr,
+        :long => '--uat_in_db_tr UAT_IN_MEMORY_BATABASE_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :uat_search_tr,
+        :long => '--uat_search_tr UAT_SEARCH_ENGINE_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :uat_db_tr,
+        :long => '--uat_db_tr UAT_DB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :uat_wb_tr,
+        :long => '--uat_wb_tr UAT_WB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :uat_wb_no,
+        :long => '--uat_wb_no UAT_WB_SERVER_NUMBER',
+        :description => "The number of servers that has to be created under the role web for UAT environment.",
+        :default => 1
+
+   option :prod_in_db_tr,
+        :long => '--prod_in_db_tr PROD_IN_MEMORY_BATABASE_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :prod_search_tr,
+        :long => '--prod_search_tr PROD_SEARCH_ENGINE_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :prod_db_tr,
+        :long => '--prod_db_tr PROD_DB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :prod_wb_tr,
+        :long => '--prod_wb_tr PROD_WB_FLAVOR',
+        :description => "The flavor of server. The hardware capacities of the machine.",
+        :default => "t2.micro"
+
+    option :prod_wb_no,
+        :long => '--prod_wb_no PROD_WB_SERVER_NUMBER',
+        :description => "The number of servers that has to be created under the role web for PROD environment.",
+        :default => 1
+
+    option :lb_name,
+        :long => '--lb-name LOAD_BALANCE_NAME',
+        :description => "The name of the load balancer by which the load balancer has to be created (This is exclusively for azure)."
+
+    option :storage_account,
+        :long => '--storage-account STORAGE_ACCOUNT',
+        :description => "The name of the storage account in which the VMs has to be created (This is exclusively for azure)."
+
+    option :app_environment,
+        :long => '--app-environment APP_ENVIRONMENT',
+        :description => "The name of the environment that needs to be created to support application",
+        :default => "Dengine"
+
+    def run
+
+      @app = config[:app]
+      @mngt_network = "#{config[:cloud]}_MNGT"
+      @mngt_env = "management"
+      @mngt_flavor = config[:mngt_server_flavour]
+      @dev_env = "development"
+      @test_env = "testing"
+      @uat_network = "#{config[:cloud]}_UAT"
+      @uat_env = "acceptance"
+      @value_uat = config[:uat_wb_no].to_i
+      @value_prod = config[:prod_wb_no].to_i
+      @prod_network = "#{config[:cloud]}_PROD"
+      @prod_env = "production"
+
+      create_application_data_bag(@app)
+
+      case config[:cloud]
+      when "aws", "azure", "openstack", "google"
+        puts ""
+        puts "#{ui.color('We are creating the environment that you selected, set back and relax', :cyan)}"
+        puts ""
+        @interface = DengineMasterCreate.new
+        create_environemnt
+        puts "#{ui.color('The environment creation is complete', :cyan)}"
+        puts ""
+        puts "#{ui.color('Thankyou for using us refer the dashboard for more info', :cyan)}"
+      else
+        puts "#{ui.color('The cloud which you selected, we are not able to support now. Else you would have selected wrong cloud', :cyan)}"
+      end
+
+    end
+
+    def create_environemnt
+
+      case config[:app_environment]
+      when "management"
+        @interface.config[:monitoring]     = config[:monitoring]
+        @interface.config[:build]          = config[:build]
+        @interface.config[:artifact]       = config[:artifact]
+        @interface.config[:ci]             = config[:ci]
+        @interface.config[:log_management] = config[:log_management]
+        @interface.config[:cloud]     = config[:cloud]
+        @interface.config[:resource_group] = config[:resource_group] unless config[:resource_group].nil?
+        @interface.config[:storage_account]= config[:storage_account] unless config[:storage_account].nil?
+        @interface.config[:lb_name]        = config[:lb_name] unless config[:lb_name].nil?
+		@interface.create_mngt_servers(@app,@mngt_network,@mngt_env,@mngt_flavor)
+      when "development"
+        @interface.config[:database]  = config[:database]
+        @interface.config[:tst_db_tr] = config[:tst_db_tr]
+        @interface.config[:cloud]     = config[:cloud]
+        @interface.config[:resource_group] = config[:resource_group] unless config[:resource_group].nil?
+        @interface.config[:storage_account]= config[:storage_account] unless config[:storage_account].nil?
+        @interface.config[:lb_name]        = config[:lb_name] unless config[:lb_name].nil?
+        @interface.create_dev_server(@app,@uat_network,@uat_env)
+      when "testing"
+        @interface.config[:database]  = config[:database]
+        @interface.config[:tst_db_tr] = config[:tst_db_tr]
+        @interface.config[:cloud]     = config[:cloud]
+        @interface.config[:resource_group] = config[:resource_group] unless config[:resource_group].nil?
+        @interface.config[:storage_account]= config[:storage_account] unless config[:storage_account].nil?
+        @interface.config[:lb_name]        = config[:lb_name] unless config[:lb_name].nil?
+        @interface.create_test_server(@app,@uat_network,@uat_env)
+      when "acceptance"
+        create_loadbalancer("acceptance")
+        @interface.config[:database]  = config[:database]
+        @interface.config[:tst_db_tr] = config[:tst_db_tr]
+        @interface.config[:cloud]     = config[:cloud]
+        @interface.config[:resource_group] = config[:resource_group] unless config[:resource_group].nil?
+        @interface.config[:storage_account]= config[:storage_account] unless config[:storage_account].nil?
+        @interface.config[:lb_name]        = config[:lb_name] unless config[:lb_name].nil?
+        @interface.create_uat_server(@app,@value_uat,@uat_network,@uat_env)
+      when "production"
+        create_loadbalancer("production")
+        @interface.config[:database]  = config[:database]
+        @interface.config[:tst_db_tr] = config[:tst_db_tr]
+        @interface.config[:cloud]     = config[:cloud]
+        @interface.config[:resource_group] = config[:resource_group] unless config[:resource_group].nil?
+        @interface.config[:storage_account]= config[:storage_account] unless config[:storage_account].nil?
+        @interface.config[:lb_name]        = config[:lb_name] unless config[:lb_name].nil?
+        @interface.create_prod_server(app,@value_prod,@prod_network,@prod_env)
+      end
+
+    end
+
+    def create_loadbalancer(env)
+
+      case env
+      when "acceptance"
+      #-----------------------creation-of-load_balancers-uat-----------------------
+      # creating load_balancers
+        if @value_uat > 1
+          if config[:cloud] == "aws"
+           @elbu = create_lb(@app,"#{@app}-#{@uat_env}",@uat_network,"network","")
+          elsif config[:cloud] == "azure"
+           @elbu = create_lb(@app,"#{@app}-#{@uat_env}",@uat_network,"network","#{config[:resource_group]}")
+          end
+        else
+          puts "#{ui.color('Not creating load balancer for UAT as it was not opted', :cyan)}"
+        end
+        sleep(5)
+
+      when "production"
+      #-----------------------creation-of-load_balancers-prod----------------------
+      # creating load_balancers
+        if @value_prod > 1
+          if config[:cloud] == "aws"
+          @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","")
+          elsif config[:cloud] == "azure"
+          @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","#{config[:resource_group]}")
+          end
+        else
+          puts "#{ui.color('Not creating load balancer for Production as it was not opted', :cyan)}"
+        end
+
+      end
+
+    end
+
+  end
+end

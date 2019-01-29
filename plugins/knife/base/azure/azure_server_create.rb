@@ -256,7 +256,8 @@ class Chef
           :azure_loadbalancer_name => locate_config_value(:azure_loadbalancer_name),
           :azure_backend_pool => locate_config_value(:azure_backend_pool),
           :azure_vm_nat_rule => locate_config_value(:azure_vm_nat_rule),
-          :azure_sec_group_name => locate_config_value(:azure_sec_group_name)
+          :azure_sec_group_name => locate_config_value(:azure_sec_group_name),
+          :azure_image_os_type => locate_config_value(:azure_image_os_type)
         }
 
         server_def[:tcp_endpoints] = locate_config_value(:tcp_endpoints) if locate_config_value(:tcp_endpoints)

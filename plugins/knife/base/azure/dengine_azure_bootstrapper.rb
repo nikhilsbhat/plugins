@@ -12,9 +12,8 @@ class Chef
         def default_bootstrap_template
           is_image_windows? ? 'windows-chef-client-msi' : 'chef-full'
         end
-
-        def tcp_test_ssh(fqdn)
-          port = 22
+		
+        def tcp_test_ssh(fqdn, port)
           tcp_socket = TCPSocket.new(fqdn, port)
           readable = IO.select([tcp_socket], nil, nil, 5)
           if readable
@@ -41,59 +40,80 @@ class Chef
             tcp_socket && tcp_socket.close
         end
 
-        def bootstrap_exec(fqdn, ip)
-          
-          unless fqdn && ip
-              Chef::Log.fatal("server not created")
-              exit 1
-          end
+        def tcp_test_winrm(fqdn, port)
+          hostname = fqdn
+          socket = TCPSocket.new(hostname, port)
+          return true
+          rescue SocketError
+            sleep 2
+            false
+          rescue Errno::ETIMEDOUT
+            false
+          rescue Errno::EPERM
+            false
+          rescue Errno::ECONNREFUSED
+            sleep 2
+            false
+          rescue Errno::EHOSTUNREACH
+            sleep 2
+            false
+          rescue Errno::ENETUNREACH
+            sleep 2
+            false
+        end
 
-            port = 22
+        def bootstrap_exec(fqdn,ip)
+		
+	  if is_image_windows?
+            port = 5985
 
-            print ui.color("Waiting for sshd on #{fqdn}:#{port}", :magenta)
+            print "#{ui.color("Waiting for winrm on #{fqdn}:winrm_port ", :magenta)}"
 
-            print(".") until tcp_test_ssh(fqdn) {
+            print(".") until tcp_test_winrm(fqdn,port) {
+              sleep @initial_sleep_delay ||= 10
+              puts("done")
+            }
+            puts("\n")
+            bootstrap_for_windows_node(fqdn, ip, port).run
+			
+	  else
+	    port = 22
+
+            print ui.color("Waiting for sshd on #{fqdn}:ssh_port ", :magenta)
+
+            print(".") until tcp_test_ssh(fqdn,port) {
               sleep @initial_sleep_delay ||= 10
               puts("done")
             }
 
             puts("\n")
             bootstrap_for_node(fqdn, ip, port).run
-          
-
+          end
         end
 
-        def load_cloud_attributes_in_hints(fqdn,ip)
-          # Modify global configuration state to ensure hint gets set by knife-bootstrap
-          # Query azure and load necessary attributes.
-          cloud_attributes = {}
-          cloud_attributes["public_ip"] = ip
-          cloud_attributes["vm_name"] = locate_config_value(:chef_node_name)
-          cloud_attributes["public_fqdn"] = fqdn
-          cloud_attributes["public_ssh_port"] = locate_config_value(:ssh_port)
-          
-          Chef::Config[:knife][:hints] ||= {}
-          Chef::Config[:knife][:hints]["azure"] ||= cloud_attributes
-        end
+        def bootstrap_for_windows_node(fqdn, ip, port)
 
-        def bootstrap_common_params(bootstrap, fqdn, ip)
-          bootstrap.config[:run_list] = locate_config_value(:run_list)
-          bootstrap.config[:prerelease] = locate_config_value(:prerelease)
-          bootstrap.config[:first_boot_attributes] = locate_config_value(:json_attributes) || {}
-          bootstrap.config[:bootstrap_version] = locate_config_value(:bootstrap_version)
-          bootstrap.config[:distro] = locate_config_value(:distro) || default_bootstrap_template
-          # setting bootstrap_template value to template_file for backward
-          bootstrap.config[:template_file] = locate_config_value(:template_file) || locate_config_value(:bootstrap_template)
-          bootstrap.config[:node_ssl_verify_mode] = locate_config_value(:node_ssl_verify_mode)
-          bootstrap.config[:node_verify_api_cert] = locate_config_value(:node_verify_api_cert)
-          bootstrap.config[:bootstrap_no_proxy] = locate_config_value(:bootstrap_no_proxy)
-          bootstrap.config[:bootstrap_url] = locate_config_value(:bootstrap_url)
-          bootstrap.config[:bootstrap_vault_file] = locate_config_value(:bootstrap_vault_file)
-          bootstrap.config[:bootstrap_vault_json] = locate_config_value(:bootstrap_vault_json)
-          bootstrap.config[:bootstrap_vault_item] = locate_config_value(:bootstrap_vault_item)
+          load_winrm_deps
+          if not Chef::Platform.windows?
+            require 'gssapi'
+          end
 
-          load_cloud_attributes_in_hints(fqdn, ip)
-          bootstrap
+          bootstrap = Chef::Knife::BootstrapWindowsWinrm.new
+          bootstrap.config[:winrm_user] = locate_config_value(:winrm_user) || 'Administrator'
+          bootstrap.config[:winrm_password] = locate_config_value(:winrm_password)
+          bootstrap.config[:winrm_transport] = locate_config_value(:winrm_transport)
+          bootstrap.config[:winrm_authentication_protocol] = locate_config_value(:winrm_authentication_protocol)
+          bootstrap.config[:winrm_port] = port
+          bootstrap.config[:auth_timeout] = locate_config_value(:auth_timeout)
+          # Todo: we should skip cert generate in case when winrm_ssl_verify_mode=verify_none
+          bootstrap.config[:winrm_ssl_verify_mode] = locate_config_value(:winrm_ssl_verify_mode)
+          bootstrap.name_args = [fqdn]
+          bootstrap.config[:chef_node_name] = config[:chef_node_name]
+          bootstrap.config[:encrypted_data_bag_secret] = locate_config_value(:encrypted_data_bag_secret)
+          bootstrap.config[:encrypted_data_bag_secret_file] = locate_config_value(:encrypted_data_bag_secret_file)
+          bootstrap.config[:msi_url] = locate_config_value(:msi_url)
+          bootstrap.config[:install_as_service] = locate_config_value(:install_as_service)
+          bootstrap_common_params(bootstrap, fqdn, ip)
         end
 
         def bootstrap_for_node(fqdn, ip, port)
@@ -117,6 +137,40 @@ class Chef
           bootstrap.config[:bootstrap_wget_options] = locate_config_value(:bootstrap_wget_options)
           bootstrap.config[:bootstrap_curl_options] = locate_config_value(:bootstrap_curl_options)
           bootstrap_common_params(bootstrap, fqdn, ip)
+        end
+
+        def bootstrap_common_params(bootstrap, fqdn, ip)
+          bootstrap.config[:run_list] = locate_config_value(:run_list)
+          bootstrap.config[:prerelease] = locate_config_value(:prerelease)
+          bootstrap.config[:first_boot_attributes] = locate_config_value(:json_attributes) || {}
+          bootstrap.config[:bootstrap_version] = locate_config_value(:bootstrap_version)
+          bootstrap.config[:distro] = locate_config_value(:distro) || default_bootstrap_template
+          # setting bootstrap_template value to template_file for backward
+          bootstrap.config[:template_file] = locate_config_value(:template_file) || locate_config_value(:bootstrap_template)
+          bootstrap.config[:node_ssl_verify_mode] = locate_config_value(:node_ssl_verify_mode)
+          bootstrap.config[:node_verify_api_cert] = locate_config_value(:node_verify_api_cert)
+          bootstrap.config[:bootstrap_no_proxy] = locate_config_value(:bootstrap_no_proxy)
+          bootstrap.config[:bootstrap_url] = locate_config_value(:bootstrap_url)
+          bootstrap.config[:bootstrap_vault_file] = locate_config_value(:bootstrap_vault_file)
+          bootstrap.config[:bootstrap_vault_json] = locate_config_value(:bootstrap_vault_json)
+          bootstrap.config[:bootstrap_vault_item] = locate_config_value(:bootstrap_vault_item)
+
+          load_cloud_attributes_in_hints(fqdn, ip)
+          bootstrap
+        end
+
+        def load_cloud_attributes_in_hints(fqdn, ip)
+          # Modify global configuration state to ensure hint gets set by knife-bootstrap
+          # Query azure and load necessary attributes.
+          cloud_attributes = {}
+          cloud_attributes["public_ip"] = ip
+          cloud_attributes["vm_name"] = locate_config_value(:chef_node_name)
+          cloud_attributes["public_fqdn"] = fqdn
+          cloud_attributes["public_ssh_port"] = server.sshport if server.sshport
+          cloud_attributes["public_winrm_port"] = server.winrmport if server.winrmport
+
+          Chef::Config[:knife][:hints] ||= {}
+          Chef::Config[:knife][:hints]["azure"] ||= cloud_attributes
         end
 
         def get_chef_extension_name
@@ -150,8 +204,7 @@ class Chef
           [
             'vm_name',
             'public_fqdn',
-            'platform',
-            'public_ip'
+            'platform'
           ]
         end
 
@@ -212,26 +265,37 @@ class Chef
           cli_secret_file || cli_secret || knife_secret_file || knife_secret
         end
 
+        def create_node_and_client_pem
+          client_builder = Chef::Knife::Bootstrap::ClientBuilder.new(
+            chef_config: Chef::Config,
+            knife_config: config,
+            ui: ui,
+          )
+          client_builder.run
+          client_builder.client_path
+        end
+
         def get_chef_extension_private_params
           pri_config = Hash.new
 
           # validator less bootstrap support for bootstrap protocol cloud-api
           if (Chef::Config[:validation_key] && !File.exist?(File.expand_path(Chef::Config[:validation_key])))
-
             if Chef::VERSION.split('.').first.to_i == 11
               ui.error('Unable to find validation key. Please verify your configuration file for validation_key config value.')
               exit 1
             end
-
-            client_builder = Chef::Knife::Bootstrap::ClientBuilder.new(
-              chef_config: Chef::Config,
-              knife_config: config,
-              ui: ui,
-            )
-
-            client_builder.run
-            key_path = client_builder.client_path
-            pri_config[:client_pem] = File.read(key_path)
+            if config[:server_count].to_i > 1
+              node_name = config[:chef_node_name]
+              0.upto (config[:server_count].to_i-1) do |count|
+                config[:chef_node_name] = node_name + count.to_s
+                key_path = create_node_and_client_pem
+                pri_config[("client_pem" + count.to_s).to_sym] = File.read(key_path)
+              end
+              config[:chef_node_name] = node_name
+            else
+              key_path = create_node_and_client_pem
+              pri_config[:client_pem] = File.read(key_path)
+            end
           else
             pri_config[:validation_key] = File.read(Chef::Config[:validation_key])
           end

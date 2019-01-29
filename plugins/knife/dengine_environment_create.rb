@@ -2,7 +2,7 @@ require 'chef/knife'
 require "#{File.dirname(__FILE__)}/base/dengine_master_base"
 
 module Engine
-  class DengineMasterCreate < Chef::Knife
+  class DengineEnvironmentCreate < Chef::Knife
 
     include DengineMasterBase
 
@@ -18,7 +18,7 @@ module Engine
       Engine::DengineAddInstanceLoadbalancer.load_deps
     end
 
-    banner 'knife dengine master create (options)'
+    banner 'knife dengine environment create (options)'
 
     option :cloud,
         :long => '--cloud CLOUD_PROVIDER_NAME',
@@ -169,6 +169,11 @@ module Engine
         :long => '--storage-account STORAGE_ACCOUNT',
         :description => "The name of the storage account in which the VMs has to be created (This is exclusively for azure)."
 
+    option :app_environment,
+        :long => '--app-environment APP_ENVIRONMENT',
+        :description => "The name of the environment that needs to be created to support application",
+        :default => "Dengine"
+
     def run
 
       @app = config[:app]
@@ -184,96 +189,76 @@ module Engine
       @prod_network = "#{config[:cloud]}_PROD"
       @prod_env = "production"
 
-      create_application_data_bag(@app)
+      create_application_data_bag_for_environment(@app)
 
-      if config[:cloud] == "google"
-        puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
-        ui.confirm("we are in alfa, certain resources cannot be created in the cloud provider you chose do you want to continue? ")
-        exit
-      elsif config[:cloud] == "openstack"
-        puts "#{ui.color('we are in alfa, soon we will be here', :cyan)}"
-        exit
-        @client = ''
-      elsif (config[:cloud] == "azure") || (config[:cloud] == "aws")
+      case config[:cloud]
+      when "aws", "azure", "openstack", "google"
         puts ""
-        puts "#{ui.color('We are creating the stack that you selected, set back and relax', :cyan)}"
+        puts "#{ui.color('We are creating the environment that you selected, set back and relax', :cyan)}"
         puts ""
-        create_stack
-        puts "#{ui.color('The stack creation is complete', :cyan)}"
+        create_environment
+        puts "#{ui.color('The environment creation is complete', :cyan)}"
         puts ""
         puts "#{ui.color('Thankyou for using us refer the dashboard for more info', :cyan)}"
-      else (config[:cloud].nil?)
-        puts ""
-        puts "#{ui.color('You did not pass a cloud provider, can you please check back and re run', :cyan)}"
-        puts ""
+      else
+        puts "#{ui.color('The cloud which you selected, we are not able to support now. Else you would have selected wrong cloud', :cyan)}"
+      end
+
+    end
+
+    def create_environment
+
+      case config[:app_environment]
+      when "management"
+        create_mngt_servers(@app,@mngt_network,@mngt_env,@mngt_flavor)
+      when "development"
+        create_dev_server(@app,@uat_network,@uat_env)
+      when "testing"
+        create_test_server(@app,@uat_network,@uat_env)
+      when "acceptance"
+        create_loadbalancer("acceptance")
+        create_uat_server(@app,@value_uat,@uat_network,@uat_env)
+      when "production"
+        create_loadbalancer("production")
+        create_prod_server(@app,@value_prod,@prod_network,@prod_env)
+      else
+        puts "#{ui.color('I do not know the environment you passed, hence I am quitting', :cyan)}"
         exit
       end
 
     end
 
-    def create_stack
+    def create_loadbalancer(env)
 
-      puts "#{ui.color('The stack creation was initiated', :cyan)}"
-      puts ""
-
-#-----------------------creation-of-load_balancers-uat-----------------------
- # creating load_balancers
-      if @value_uat > 1
-        if config[:cloud] == "aws"
-         @elbu = create_lb(@app,"#{@app}-#{@uat_env}",@uat_network,"network","")
-        elsif config[:cloud] == "azure"
-         @elbu = create_lb(@app,"#{@app}-#{@uat_env}",@uat_network,"network","#{config[:resource_group]}")
+      case env
+      when "acceptance"
+      #-----------------------creation-of-load_balancers-uat-----------------------
+      # creating load_balancers
+        if @value_uat > 1
+          if config[:cloud] == "aws"
+           @elbu = create_lb(@app,"#{@app}-#{@uat_env}",@uat_network,"network","")
+          elsif config[:cloud] == "azure"
+           @elbu = create_lb(@app,"#{@app}-#{@uat_env}",@uat_network,"network","#{config[:resource_group]}")
+          end
+        else
+          puts "#{ui.color('Not creating load balancer for UAT as it was not opted', :cyan)}"
         end
-      else
-        puts "#{ui.color('Not creating load balancer for UAT as it was not opted', :cyan)}"
-      end
-      sleep(5)
+        sleep(5)
 
-#-----------------------creation-of-load_balancers-prod----------------------
- # creating load_balancers
-      if @value_prod > 1
-        if config[:cloud] == "aws"
-        @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","")
-        elsif config[:cloud] == "azure"
-        @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","#{config[:resource_group]}")
+      when "production"
+      #-----------------------creation-of-load_balancers-prod----------------------
+      # creating load_balancers
+        if @value_prod > 1
+          if config[:cloud] == "aws"
+          @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","")
+          elsif config[:cloud] == "azure"
+          @elbp = create_lb(@app,"#{@app}-#{@prod_env}",@prod_network,"network","#{config[:resource_group]}")
+          end
+        else
+          puts "#{ui.color('Not creating load balancer for Production as it was not opted', :cyan)}"
         end
-      else
-        puts "#{ui.color('Not creating load balancer for Production as it was not opted', :cyan)}"
+
       end
-
-      puts ""
-      puts "#{ui.color('The stack creation is in progress', :cyan)}"
-      puts ""
-
-#---------------------------management-servers-------------------------------
-
-      mngt_servers = Thread.new{create_mngt_servers(@app,@mngt_network,@mngt_env,@mngt_flavor)}
-
-#------------------------------dev-servers-----------------------------------
-
-#      dev_servers = Thread.new{create_dev_server(@app,@uat_network,@dev_env)}
-
-#------------------------------test-servers-----------------------------------
-
-#      test_servers = Thread.new{create_test_server(@app,@uat_network,@test_env)}
-
-#------------------------------uat-servers-----------------------------------
-
-      uat_servers = Thread.new{create_uat_server(@app,@value_uat,@uat_network,@uat_env)}
-
-#----------------------------prod-servers------------------------------------
-
-      prod_servers = Thread.new{create_prod_server(@app,@value_prod,@prod_network,@prod_env)}
-
-#      dev_servers.join
-#      test_servers.join
-      uat_servers.join
-      prod_servers.join
-      mngt_servers.join
-
-      puts ""
-      puts "#{ui.color('The stack creation is complete', :cyan)}"
-      puts ""
 
     end
 
@@ -298,10 +283,7 @@ module Engine
       if (config[:cloud] == "aws") && (%w[web tomcat].include?(role))
         instance_id = fetch_instance_id(name)
         if env == "production"
-          puts "#{ui.color('..|....|....|....|....|....|....|....|....|....|..', :cyan)}"
-		  puts "The Load balancer name is : #{@elbp}"
           add_instance(@elbp,instance_id)
-          puts "#{ui.color('..|....|....|....|....|....|....|....|....|....|..', :cyan)}"
         elsif env == "acceptance"
           add_instance(@elbu,instance_id)
         else
@@ -358,7 +340,7 @@ module Engine
 
     end
 
-#---------------------------------------------------------------
+#-------------------------------------------------------------------------
 
     def create_mngt_servers(app,mngt_network,mngt_env,mngt_flavor)
 

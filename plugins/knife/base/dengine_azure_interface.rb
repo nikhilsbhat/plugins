@@ -1,4 +1,5 @@
 require 'chef/knife'
+require 'azure/storage'
 require "#{File.dirname(__FILE__)}/dengine_client_base"
 #require "#{File.dirname(__FILE__)}/azure/azure_server_create"
 
@@ -277,14 +278,34 @@ module Engine
 
       strage_name = name.downcase
       time = Time.new
-      params = Azure::ARM::Storage::Models::StorageAccountCreateParameters.new
+      params = StorageAccountCreateParameters.new
       params.location = 'CentralIndia'
-      sku = Models::Sku.new
+      sku = Sku.new
       sku.name = 'Standard_LRS'
       params.sku = sku
-      params.kind = Models::Kind::Storage
+      params.kind = 'Storage'
       puts "Creating Storage Account #{time.hour}:#{time.min}:#{time.sec}"
       promise = azure_storage_client.storage_accounts.create("#{resource_group}", "#{name}", params)
+
+      #---------storing a powershell script inside a container for bootstrapping windows-----
+
+      storage_key = azure_storage_client.storage_accounts.list_keys(resource_group, name, custom_headers = nil)
+      key = storage_key.keys.sample(1)
+
+      client = Azure::Storage::Client.create(:storage_account_name => name, :storage_access_key => "#{key[0].value}")
+
+      blobs = client.blob_client
+
+      container = blobs.create_container('windows', :public_access_level => 'blob' )
+
+      open("#{File.dirname(__FILE__)}/enable_winrm.ps1", "w") do |f|
+        f.puts "Enable-PSRemoting -Force"
+        f.puts "netsh advfirewall firewall add rule name='WinRM-HTTP' dir=in localport=5985 protocol=TCP action=allow"
+      end
+      content = ::File.open("#{File.dirname(__FILE__)}/enable_winrm.ps1", 'rb') { |file| file.read }
+      blobs.create_block_blob(container.name, 'enable_winrm.ps1', content)
+      File.delete("#{File.dirname(__FILE__)}/enable_winrm.ps1")
+
       t = Time.new
       puts "Created Storage Account #{t.hour}:#{t.min}:#{t.sec}"
     end
@@ -321,6 +342,7 @@ module Engine
       create.config[:azure_backend_pool]          = backend_pool
       create.config[:azure_sec_group_name]        = security_group
       create.config[:azure_resource_group_name]   = resource_group
+      create.config[:bootstrap_version]           = '12.21.31'
 
       create.config[:environment]                 = chef_env
       value = create.run
